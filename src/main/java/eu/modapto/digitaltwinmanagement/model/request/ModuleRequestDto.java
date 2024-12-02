@@ -33,8 +33,7 @@ public class ModuleRequestDto {
     private String aas;
     @Builder.Default
     private DataFormat format = DataFormat.JSON;
-    @Builder.Default
-    private DigitalTwinConnectorType type = DigitalTwinConnectorType.INTERNAL;
+    private DigitalTwinConnectorType type;
     @Builder.Default
     private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
 }

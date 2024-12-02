@@ -16,7 +16,9 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import static eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType.DOCKER;
 
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 
@@ -26,8 +28,11 @@ public class DigitalTwinConnectorFactory {
     @Autowired
     private DockerConfig dockerConfig;
 
+    @Value("${dt.deployment.type.default:INTERNAL}")
+    private DigitalTwinConnectorType defaultDeplyomentType = DigitalTwinConnectorType.INTERNAL;
+
     public DigitalTwinConnector create(DigitalTwinConnectorType type, DigitalTwinConfig config) throws Exception {
-        switch (type) {
+        switch (Optional.ofNullable(type).orElse(defaultDeplyomentType)) {
             case DOCKER:
                 return new DigitalTwinConnectorDocker(config, dockerConfig);
             case INTERNAL:
