@@ -16,7 +16,6 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import static eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType.DOCKER;
 
-import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -27,12 +26,12 @@ public class DigitalTwinConnectorFactory {
     @Autowired
     private DockerConfig dockerConfig;
 
-    public DigitalTwinConnector create(DigitalTwinConnectorType type, ServiceConfig serviceConfig) throws Exception {
+    public DigitalTwinConnector create(DigitalTwinConnectorType type, DigitalTwinConfig config) throws Exception {
         switch (type) {
             case DOCKER:
-                return new DigitalTwinConnectorDocker(serviceConfig, dockerConfig);
+                return new DigitalTwinConnectorDocker(config, dockerConfig);
             case INTERNAL:
-                return new DigitalTwinConnectorInternal(serviceConfig);
+                return new DigitalTwinConnectorInternal(config);
             default:
                 throw new IllegalArgumentException(String.format("Unsupported DT connector type '%s'", type));
         }

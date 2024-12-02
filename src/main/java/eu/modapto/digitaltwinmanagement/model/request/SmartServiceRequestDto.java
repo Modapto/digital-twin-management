@@ -14,11 +14,6 @@
  */
 package eu.modapto.digitaltwinmanagement.model.request;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
-import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,12 +24,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ModuleRequestDto {
-    private String aas;
-    @Builder.Default
-    private DataFormat format = DataFormat.JSON;
-    @Builder.Default
-    private DigitalTwinConnectorType type = DigitalTwinConnectorType.INTERNAL;
-    @Builder.Default
-    private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
+public class SmartServiceRequestDto {
+    private long serviceId;
 }

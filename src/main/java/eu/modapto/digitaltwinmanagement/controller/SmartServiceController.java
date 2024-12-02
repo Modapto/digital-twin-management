@@ -14,12 +14,14 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
-import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.mapper.SmartServiceMapper;
+import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
 import eu.modapto.digitaltwinmanagement.service.SmartServiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -32,30 +34,25 @@ public class SmartServiceController {
 
     @Operation(summary = "Get all smart services", description = "Returns a list of all smart services")
     @GetMapping
-    public List<SmartService> getAllSmartServices() {
-        return smartServiceService.getAllSmartServices();
+    public List<SmartServiceResponseDto> getAllSmartServices() {
+        return smartServiceService.getAllSmartServices().stream()
+                .map(SmartServiceMapper::toDto)
+                .toList();
     }
 
 
     @Operation(summary = "Get smart service by ID", description = "Returns the details of an existing smart service by its ID")
     @GetMapping("/{serviceId}")
-    public SmartService getSmartService(@PathVariable Long serviceId) {
-        return smartServiceService.getSmartServiceById(serviceId);
-    }
-
-
-    @Operation(summary = "Update an existing smart service", description = "Updates the details of an existing smart service")
-    @ApiResponse(responseCode = "200", description = "Smart service updated successfully")
-    @PutMapping("/{serviceId}")
-    public SmartService updateSmartService(@PathVariable Long serviceId, @RequestBody SmartService service) {
-        return smartServiceService.updateSmartService(serviceId, service);
+    public SmartServiceResponseDto getSmartService(@PathVariable Long serviceId) {
+        return SmartServiceMapper.toDto(smartServiceService.getSmartServiceById(serviceId));
     }
 
 
     @Operation(summary = "Delete a smart service", description = "Deletes a smart service by its ID")
     @ApiResponse(responseCode = "204", description = "Smart service deleted successfully")
     @DeleteMapping("/{serviceId}")
-    public void deleteSmartService(@PathVariable Long serviceId) {
-        smartServiceService.deleteSmartService(serviceId);
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSmartService(@PathVariable Long serviceId) throws Exception {
+        smartServiceService.deleteService(serviceId);
     }
 }

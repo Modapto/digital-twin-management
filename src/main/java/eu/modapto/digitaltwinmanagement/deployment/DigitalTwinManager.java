@@ -14,21 +14,15 @@
  */
 package eu.modapto.digitaltwinmanagement.deployment;
 
-import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
+import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
+import eu.modapto.digitaltwinmanagement.smartservice.embedded.EmbeddedSmartServiceHelper;
+import eu.modapto.digitaltwinmanagement.util.Helper;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
-import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.JsonDeserializer;
-import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,35 +31,59 @@ import org.springframework.stereotype.Component;
 public class DigitalTwinManager {
 
     private static final String HOSTNAME = "localhost";
-    private Map<Long, DigitalTwinConnector> instances = new HashMap<>();
-    private final JsonDeserializer deserializer = new JsonDeserializer();
+    private final Map<Long, DigitalTwinConnector> instances = new HashMap<>();
     @Autowired
     private DigitalTwinConnectorFactory connectorFactory;
 
-    public URI deploy(Module module) throws Exception {
+    public void deploy(Module module) throws Exception {
         if (instances.containsKey(module.getId())) {
             throw new RuntimeException(String.format("DT for module already exists (module id: %s)", module.getId()));
         }
-        int port = findFreePort();
+        deploy(module, findFreePort());
+    }
+
+
+    private void deploy(Module module, int port) throws Exception {
+        createActualModel(module);
         DigitalTwinConnector dt = connectorFactory.create(
                 module.getType(),
-                buildServiceConfig(
-                        deserializer.read(EncodingHelper.base64Decode(module.getAas()), Environment.class),
-                        port));
+                DigitalTwinConfig.builder()
+                        .environmentContext(module.getActualModel())
+                        .port(port)
+                        .assetConnections(module.getAssetConnections())
+                        .build());
         dt.start();
         instances.put(module.getId(), dt);
-        return buildUri(port);
+        updateEndpoints(module, port);
+    }
+
+
+    private void updateEndpoints(Module module, int port) {
+        module.setEndpoint(String.format("http://%s:%d/api/v3.0", HOSTNAME, port));
+        for (var service: module.getServices()) {
+            service.setEndpoint(module.getEndpoint() + service.getEndpoint());
+        }
+    }
+
+
+    private void createActualModel(Module module) {
+        EnvironmentContext actualModel = Helper.deepCopy(module.getProvidedModel());
+        for (var service: module.getServices()) {
+            if (service instanceof EmbeddedSmartService embedded) {
+                EmbeddedSmartServiceHelper.addSmartService(actualModel, embedded);
+            }
+        }
+        module.setActualModel(actualModel);
     }
 
 
     public void update(Module module) throws Exception {
-        if (instances.containsKey(module.getId())) {
+        if (!instances.containsKey(module.getId())) {
             throw new RuntimeException(String.format("DT for module does not exist (module id: %s)", module.getId()));
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
-        // re-use old port - where to get it from?
-        deploy(module);
+        deploy(module, dt.config.getPort());
     }
 
 
@@ -75,27 +93,8 @@ public class DigitalTwinManager {
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
+        module.setActualModel(null);
         instances.remove(module.getId());
-    }
-
-
-    private static URI buildUri(int port) throws URISyntaxException {
-        return URI.create(String.format("https://%s:%d", HOSTNAME, port));
-    }
-
-
-    private ServiceConfig buildServiceConfig(Environment model, int port) {
-        return ServiceConfig.builder()
-                .endpoint(HttpEndpointConfig.builder()
-                        .cors(true)
-                        .port(port)
-                        .build())
-                .persistence(PersistenceInMemoryConfig.builder()
-                        .initialModel(model)
-                        .build())
-                .messageBus(MessageBusInternalConfig.builder().build())
-                .fileStorage(FileStorageInMemoryConfig.builder().build())
-                .build();
     }
 
 

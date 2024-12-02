@@ -14,9 +14,13 @@
  */
 package eu.modapto.digitaltwinmanagement.mapper;
 
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.DeserializationException;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
+import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleResponseDto;
+import java.io.ByteArrayInputStream;
 
 
 public class ModuleMapper {
@@ -24,19 +28,22 @@ public class ModuleMapper {
     private ModuleMapper() {}
 
 
-    public static Module toEntity(ModuleRequestDto requestDto) {
-        Module module = new Module();
-        module.setAas(requestDto.getAas());
-        module.setType(requestDto.getType());
-        return module;
+    public static Module toEntity(ModuleRequestDto requestDto) throws DeserializationException {
+        return Module.builder()
+                .providedModel(EnvironmentSerializationManager
+                        .deserializerFor(requestDto.getFormat())
+                        .read(new ByteArrayInputStream(EncodingHelper.base64Decode(requestDto.getAas()).getBytes())))
+                .type(requestDto.getType())
+                .assetConnections(requestDto.getAssetConnections())
+                .build();
     }
 
 
     public static ModuleResponseDto toDto(Module module) {
-        ModuleResponseDto responseDto = new ModuleResponseDto();
-        responseDto.setId(module.getId());
-        responseDto.setUri(module.getUri());
-        responseDto.setServices(module.getServices());
-        return responseDto;
+        return ModuleResponseDto.builder()
+                .id(module.getId())
+                .endpoint(module.getEndpoint())
+                .services(module.getServices().stream().map(SmartServiceMapper::toDto).toList())
+                .build();
     }
 }

@@ -18,9 +18,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
 @Entity
+@Data
+@NoArgsConstructor
+@SuperBuilder
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = InternalSmartService.class, name = "internal"),
@@ -33,39 +39,12 @@ public abstract class SmartService {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private Long serviceId;
     private String name;
+    private String endpoint;
 
     @ManyToOne
-    @JoinColumn(name = "module_id", nullable = false)
+    @JoinColumn(name = "module_id")
     @JsonIgnore
     private Module module;
-
-    public Long getId() {
-        return id;
-    }
-
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-
-    public String getName() {
-        return name;
-    }
-
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-
-    public Module getModule() {
-        return module;
-    }
-
-
-    public void setModule(Module module) {
-        this.module = module;
-    }
 }

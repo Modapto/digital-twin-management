@@ -31,35 +31,45 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
+import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Objects;
 
 
 public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
+    private static final String CONTAINER_MODEL_FILE = "/app/model.aasx";
+    private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
+    private static final int CONTAINER_PORT_INTERNAL = 8080;
+
     private final DockerClient dockerClient;
-    private final int port;
-    private File configFile;
+    private final DockerConfig dockerConfig;
+    private final Path contextPath = Files.createTempDirectory("dt-context-files");
+    private final File modelFile = contextPath.resolve("model.aasx").toFile();
+    private final File configFile = contextPath.resolve("config.json").toFile();
+
     private String containerId;
-    private DockerConfig dockerConfig;
+    private boolean running = false;
     private boolean convertPaths;
 
-    public DigitalTwinConnectorDocker(ServiceConfig config, DockerConfig dockerConfig) throws Exception {
+    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DockerConfig dockerConfig) throws Exception {
         super(config);
         this.dockerConfig = dockerConfig;
         dockerClient = DockerClientBuilder
                 .getInstance(DefaultDockerClientConfig
                         .createDefaultConfigBuilder()
-                        //.withDockerHost(DOCKER_HOST)
-                        //.withDockerTlsVerify(true)
-                        //.withDockerCertPath("/home/user/.docker")
                         .withRegistryUsername("mjacoby")
                         .withRegistryPassword("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")
-                        //.withRegistryEmail(registryMail)
                         .withRegistryUrl(dockerConfig.getRegistry())
                         .build())
                 .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
@@ -67,14 +77,50 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .build())
                 .build();
         dockerClient.pingCmd().exec();
-        port = config.getEndpoints().stream()
-                .filter(HttpEndpointConfig.class::isInstance)
-                .map(HttpEndpointConfig.class::cast)
-                .findFirst()
-                .orElseThrow()
-                .getPort();
+        initContainer();
+    }
+
+
+    @Override
+    public void start() throws Exception {
+        if (running) {
+            return;
+        }
+        CreateContainerResponse container = dockerClient.createContainerCmd(dockerConfig.getImage())
+                .withExposedPorts(new ExposedPort(CONTAINER_PORT_INTERNAL))
+                .withHostConfig(new HostConfig()
+                        .withBinds(
+                                new Bind(getHostFilename(modelFile), new Volume(CONTAINER_MODEL_FILE)),
+                                new Bind(getHostFilename(configFile), new Volume(CONTAINER_CONFIG_FILE)))
+                        .withPortBindings(
+                                PortBinding.parse(String.format("%d:%d", config.getPort(), CONTAINER_PORT_INTERNAL))))
+                .withEnv(
+                        String.format("faaast_model=%s", CONTAINER_MODEL_FILE),
+                        String.format("faaast_config=%s", CONTAINER_CONFIG_FILE),
+                        "faaast_loglevel_faaast=TRACE")
+                .exec();
+        StartContainerCmd startCmd = dockerClient.startContainerCmd(container.getId());
+        startCmd.exec();
+        containerId = container.getId();
+        running = true;
+        System.out.println("Container started with ID: " + container.getId());
+    }
+
+
+    @Override
+    public void stop() throws IOException {
+        if (!running) {
+            return;
+        }
+        dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+        running = false;
+    }
+
+
+    private void initContainer() throws IOException, SerializationException {
         detectConvertPaths();
-        writeConfigFile(config);
+        writeConfigFile();
+        writeModelFile();
     }
 
 
@@ -85,57 +131,35 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     }
 
 
-    private String getConfigFileOnDockerHost() {
+    private String getHostFilename(File file) {
         if (!convertPaths) {
-            return configFile.getAbsolutePath();
+            return file.getAbsolutePath();
         }
-        return configFile.getAbsolutePath().replace("C:", "/mnt/c").replace("\\", "/");
+        return file.getAbsolutePath().replace("C:", "/mnt/c").replace("\\", "/");
     }
 
 
-    private void writeConfigFile(ServiceConfig config) throws IOException {
-        configFile = Files.createTempFile("modapto-dt-config", "").toFile();
+    private void writeConfigFile() throws IOException {
+        ServiceConfig serviceConfig = ServiceConfig.builder()
+                .endpoint(HttpEndpointConfig.builder()
+                        .ssl(false)
+                        .cors(true)
+                        .port(CONTAINER_PORT_INTERNAL)
+                        .build())
+                .persistence(PersistenceInMemoryConfig.builder().build())
+                .messageBus(MessageBusInternalConfig.builder().build())
+                .fileStorage(FileStorageInMemoryConfig.builder().build())
+                .assetConnections(config.getAssetConnections())
+                .build();
         new ObjectMapper()
                 .enable(SerializationFeature.INDENT_OUTPUT)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-                .writeValue(configFile, config);
+                .writeValue(configFile, serviceConfig);
     }
 
 
-    @Override
-    public void start() throws Exception {
-        String configPath = "/app/config.json";
-        CreateContainerResponse container = dockerClient.createContainerCmd(dockerConfig.getImage())
-                .withExposedPorts(new ExposedPort(port))
-                .withHostConfig(new HostConfig()
-                        .withBinds(new Bind(getConfigFileOnDockerHost(), new Volume(configPath)))
-                        .withPortBindings(PortBinding.parse(String.format("%d:%d", port, port))))
-                .withEnv(String.format("faaast_config=%s", configPath))
-                .exec();
-        StartContainerCmd startCmd = dockerClient.startContainerCmd(container.getId());
-        startCmd.exec();
-        containerId = container.getId();
-        System.out.println("Container started with ID: " + container.getId());
-    }
-
-
-    @Override
-    public void stop() throws IOException {
-        dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-        // TODO either close and then need to open on start() or keep open all the time        
-        //docker.close();
-    }
-
-    //
-    //    private void init() {
-    //        dockerHost = env.getProperty("docker.host", DEFAULT_DOCKER_HOST);
-    //        dockerRegistry = env.getProperty("docker.registry", DEFAULT_DOCKER_REGISTRY);
-    //        dockerImage = env.getProperty("docker.image", DEFAULT_DOCKER_IMAGE);
-    //    }
-
-
-    public void setDockerConfig(DockerConfig dockerConfig) {
-        this.dockerConfig = dockerConfig;
+    private void writeModelFile() throws IOException, SerializationException {
+        EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(modelFile, config.getEnvironmentContext());
     }
 }

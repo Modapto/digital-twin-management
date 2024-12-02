@@ -17,11 +17,15 @@
         <docker-java.version>3.4.0</docker-java.version>
         <faaast.version>1.2.0-SNAPSHOT</faaast.version>
         <java.version>17</java.version>
+        <jaxb-api.version>2.3.1</jaxb-api.version>
         <maven.plugin.spotless.version>2.43.0</maven.plugin.spotless.version>
         <plugin.lombock.version>1.18.34</plugin.lombock.version>
+        <plugin.properties-maven.version>1.2.1</plugin.properties-maven.version>
+        <smt-simulation.version>0.1.0-SNAPSHOT</smt-simulation.version>
         <spring-boot-starter.version>3.3.5</spring-boot-starter.version>
         <springdoc-openapi-starter-webmvc-ui.version>2.6.0</springdoc-openapi-starter-webmvc-ui.version>
         <start-class>eu.modapto.digitaltwinmanagement.App</start-class>
+        <wiremock-spring-boot.version>2.1.3</wiremock-spring-boot.version>
     </properties>
     <dependencies>
         <dependency>
@@ -40,6 +44,12 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>com.maciejwalkowiak.spring</groupId>
+            <artifactId>wiremock-spring-boot</artifactId>
+            <version>${wiremock-spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
             <artifactId>core</artifactId>
             <version>${faaast.version}</version>
@@ -47,6 +57,11 @@
         <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
             <artifactId>endpoint-http</artifactId>
+            <version>${faaast.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
+            <artifactId>filestorage-filesystem</artifactId>
             <version>${faaast.version}</version>
         </dependency>
         <dependency>
@@ -70,13 +85,24 @@
             <version>${faaast.version}</version>
         </dependency>
         <dependency>
+            <groupId>eu.modapto.faaast.service</groupId>
+            <artifactId>smt-simulation</artifactId>
+            <version>${smt-simulation.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <groupId>jakarta.xml.bind</groupId>
             <artifactId>jakarta.xml.bind-api</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
-            <version>2.3.1</version>
+            <version>${jaxb-api.version}</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jaxb</groupId>
@@ -140,8 +166,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>properties-maven-plugin</artifactId>
-                <version>1.0.0</version>
-                <!-- Check for the latest version -->
+                <version>${plugin.properties-maven.version}</version>
                 <executions>
                     <execution>
                         <goals>

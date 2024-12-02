@@ -1,0 +1,20 @@
+{
+    "executionState": "Completed",
+    "success": true,
+    "outputArguments": {
+        "resultPerStep": [{
+                "v": -0.0981,
+                "h": 0.99955855,
+                "stepNumber": 1
+            }, {
+                "v": -0.1962000000000001,
+                "h": 0.9981361000000002,
+                "stepNumber": 2
+            }, {
+                "v": -0.2943000000000001,
+                "h": 0.9957326500000004,
+                "stepNumber": 3
+            }]
+    },
+    "inoutputArguments": {}
+}

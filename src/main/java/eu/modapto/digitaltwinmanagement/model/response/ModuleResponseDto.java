@@ -14,8 +14,6 @@
  */
 package eu.modapto.digitaltwinmanagement.model.response;
 
-import eu.modapto.digitaltwinmanagement.model.SmartService;
-import java.net.URI;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,6 +27,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ModuleResponseDto {
     private long id;
-    private URI uri;
-    private List<SmartService> services;
+    private String endpoint;
+    private List<SmartServiceResponseDto> services;
 }

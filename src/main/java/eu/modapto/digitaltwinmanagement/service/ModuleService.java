@@ -18,13 +18,14 @@ import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
-import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
+@Transactional
 public class ModuleService {
     @Autowired
     private DigitalTwinManager dtManager;
@@ -34,9 +35,8 @@ public class ModuleService {
 
     public Module createModule(Module module) throws Exception {
         Module result = moduleRepository.save(module);
-        URI uri = dtManager.deploy(result);
-        result.setUri(uri);
-        return result;
+        dtManager.deploy(module);
+        return moduleRepository.save(result);
     }
 
 
@@ -54,9 +54,13 @@ public class ModuleService {
 
 
     public void deleteModule(Long moduleId) throws Exception {
-        Module module = moduleRepository.getById(moduleId);
+        Module module = moduleRepository.findById(moduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
         dtManager.undeploy(module);
-        moduleRepository.deleteById(moduleId);
+        module.getServices().forEach(x -> {
+            x.setModule(null);
+        });
+        moduleRepository.delete(module);
     }
 
 

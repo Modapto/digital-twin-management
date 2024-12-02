@@ -12,29 +12,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.request;
+package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
-import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
-import java.util.ArrayList;
+import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import java.util.List;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 
-@Data
+@Getter
+@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ModuleRequestDto {
-    private String aas;
-    @Builder.Default
-    private DataFormat format = DataFormat.JSON;
-    @Builder.Default
-    private DigitalTwinConnectorType type = DigitalTwinConnectorType.INTERNAL;
-    @Builder.Default
-    private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
+public class DigitalTwinConfig {
+    private EnvironmentContext environmentContext;
+    private int port;
+    private List<AssetConnectionConfig> assetConnections;
 }

@@ -14,10 +14,15 @@
  */
 package eu.modapto.digitaltwinmanagement.model;
 
+import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
+import eu.modapto.digitaltwinmanagement.jpa.EnvironmentContextConverter;
 import jakarta.persistence.*;
-import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,13 +39,32 @@ public class Module {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private URI uri;
-
-    @Lob
-    private String aas;
+    private String endpoint;
 
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SmartService> services;
+    @Builder.Default
+    private List<SmartService> services = new ArrayList<>();
 
     private DigitalTwinConnectorType type;
+
+    @Convert(converter = EnvironmentContextConverter.class)
+    @Lob
+    private EnvironmentContext providedModel;
+
+    @Convert(converter = EnvironmentContextConverter.class)
+    @Lob
+    private EnvironmentContext actualModel;
+
+    @Transient
+    private List<AssetConnectionConfig> assetConnections;
+
+    public SmartService getServiceById(Long serviceId) {
+        return services.stream()
+                .filter(x -> Objects.equals(x.getId(), serviceId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                        "service not found for module (module id: %s, service id: %s)",
+                        id,
+                        serviceId)));
+    }
 }

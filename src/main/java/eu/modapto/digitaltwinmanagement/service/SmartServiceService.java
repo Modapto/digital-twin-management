@@ -14,24 +14,36 @@
  */
 package eu.modapto.digitaltwinmanagement.service;
 
+import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 
 @Service
+@Transactional
 public class SmartServiceService {
+
+    @Value("${modapto.service-catalogue.url}")
+    private String serviceCatalogueEndpoint;
 
     @Autowired
     private SmartServiceRepository smartServiceRepository;
 
     @Autowired
     private ModuleRepository moduleRepository;
+
+    @Autowired
+    private DigitalTwinManager dtManager;
 
     public List<SmartService> getAllSmartServices() {
         return smartServiceRepository.findAll();
@@ -41,11 +53,6 @@ public class SmartServiceService {
     public SmartService getSmartServiceById(Long serviceId) {
         return smartServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("SmartService not found"));
-    }
-
-
-    public SmartService createSmartService(SmartService service) {
-        return smartServiceRepository.save(service);
     }
 
 
@@ -61,28 +68,53 @@ public class SmartServiceService {
     }
 
 
-    public void deleteSmartService(Long serviceId) {
-        smartServiceRepository.deleteById(serviceId);
-    }
-
-
-    public SmartService addServiceToModule(Long moduleId, SmartService service) {
+    public SmartService addServiceToModule(Long moduleId, long serviceId) throws Exception {
         Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
-
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
+        SmartService service = getServiceDetails(serviceId);
         service.setModule(module);
-        return smartServiceRepository.save(service);
+        smartServiceRepository.save(service);
+        module.getServices().add(service);
+        dtManager.update(module);
+        moduleRepository.save(module);
+        return module.getServiceById(service.getId());
     }
 
 
-    public void deleteServiceFromModule(Long moduleId, Long serviceId) {
+    private SmartService getServiceDetails(long serviceId) {
+        SmartService result = RestClient.create(serviceCatalogueEndpoint)
+                .get()
+                .uri("/service/{serviceId}", serviceId)
+                .retrieve()
+                .toEntity(SmartService.class)
+                .getBody();
+        result.setServiceId(serviceId);
+        return result;
+    }
+
+
+    public void deleteService(Long serviceId) throws Exception {
+        deleteService(smartServiceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId))));
+
+    }
+
+
+    private void deleteService(SmartService service) throws Exception {
+        service.getModule().getServices().removeIf(x -> Objects.equals(x.getId(), service.getId()));
+        dtManager.update(service.getModule());
+        moduleRepository.save(service.getModule());
+        smartServiceRepository.delete(service);
+    }
+
+
+    public void deleteServiceFromModule(Long moduleId, Long serviceId) throws Exception {
         SmartService service = smartServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId)));
 
         if (!service.getModule().getId().equals(moduleId)) {
             throw new ResourceNotFoundException("Service does not belong to the specified module");
         }
-
-        smartServiceRepository.delete(service);
+        deleteService(service);
     }
 }

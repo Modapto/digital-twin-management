@@ -12,19 +12,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.mapper;
 
-public abstract class DigitalTwinConnector {
+import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
 
-    protected DigitalTwinConfig config;
 
-    protected DigitalTwinConnector(DigitalTwinConfig config) throws Exception {
-        this.config = config;
+public class SmartServiceMapper {
+
+    private SmartServiceMapper() {}
+
+
+    public static SmartServiceResponseDto toDto(SmartService service) {
+        return SmartServiceResponseDto.builder()
+                .id(service.getId())
+                .serviceId(service.getServiceId())
+                .endpoint(service.getEndpoint())
+                .build();
     }
-
-
-    public abstract void start() throws Exception;
-
-
-    public abstract void stop() throws Exception;
 }

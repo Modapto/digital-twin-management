@@ -17,8 +17,16 @@ package eu.modapto.digitaltwinmanagement.model;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
+@Data
+@NoArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
 @Entity
 @DiscriminatorValue("Embedded")
 public class EmbeddedSmartService extends SmartService {

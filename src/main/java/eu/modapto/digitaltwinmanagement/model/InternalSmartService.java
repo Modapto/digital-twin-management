@@ -16,8 +16,16 @@ package eu.modapto.digitaltwinmanagement.model;
 
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
+@Data
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
+@NoArgsConstructor
 @Entity
 @DiscriminatorValue("Internal")
 public class InternalSmartService extends SmartService {}

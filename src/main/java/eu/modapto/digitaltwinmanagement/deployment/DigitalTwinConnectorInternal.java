@@ -16,14 +16,39 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.Service;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
+import eu.modapto.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
+import java.util.stream.Collectors;
 
 
 public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
     private final Service service;
 
-    public DigitalTwinConnectorInternal(ServiceConfig config) throws Exception {
+    public DigitalTwinConnectorInternal(DigitalTwinConfig config) throws Exception {
         super(config);
-        service = new Service(config);
+        service = new Service(ServiceConfig.builder()
+                .endpoint(HttpEndpointConfig.builder()
+                        .cors(true)
+                        .port(config.getPort())
+                        .sni(false)
+                        .ssl(false)
+                        .build())
+                .persistence(PersistenceInMemoryConfig.builder()
+                        .initialModel(config.getEnvironmentContext().getEnvironment())
+                        .build())
+                .messageBus(MessageBusInternalConfig.builder().build())
+                .fileStorage(FileStorageInMemoryConfig.builder()
+                        .files(config.getEnvironmentContext().getFiles().stream()
+                                .collect(Collectors.toMap(
+                                        x -> x.getPath(),
+                                        x -> x.getFileContent())))
+                        .build())
+                .submodelTemplateProcessor(new SimulationSubmodelTemplateProcessorConfig())
+                .assetConnections(config.getAssetConnections())
+                .build());
     }
 
 
@@ -34,7 +59,7 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
 
 
     @Override
-    public void stop() {
+    public void stop() throws Exception {
         service.stop();
     }
 }
