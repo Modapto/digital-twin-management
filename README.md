@@ -16,7 +16,7 @@ You need to support at least one of the following DT deployment types: `internal
 
 **Docker** means that FA³ST Service will be started as a docker container. For this to work, you need a running docker daemon and configure it by setting the following value(s) in the application.properties
 
-````YAML
+```YAML
 dt.deployment.docker.host=tcp://localhost:2375 // set to match your docker daemon
 ```
 
