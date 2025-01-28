@@ -12,20 +12,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.model.response.external.catalog;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
+import java.util.Map;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
-@Component
-@ConfigurationProperties(prefix = "dt.deployment.docker")
-@Getter
-@Setter
-public class DockerConfig {
-    private String host = "tcp://localhost:2375";
-    private String registry = "ghcr.io";
-    private String image = "ghcr.io/modapto/digital-twin:latest";
+@Data
+@EqualsAndHashCode
+@NoArgsConstructor
+@SuperBuilder
+public class RestDetails {
+    private String endpoint;
+    private String method;
+    private Map<String, String> headers;
+    private Map<String, String> outputMapping;
+    private String payload;
 }

@@ -14,6 +14,9 @@
  */
 package eu.modapto.digitaltwinmanagement.model.response;
 
+import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,8 +27,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(name = "SmartServiceResponse")
 public class SmartServiceResponseDto {
     private long id;
-    private long serviceId;
+    private String serviceId;
     private String endpoint;
+    private String name;
+    private String description;
+    private Map<String, ArgumentMapping> inputArgumentTypes;
+    private Map<String, ArgumentMapping> outputArgumentTypes;
 }

@@ -19,7 +19,15 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.jpa.EnvironmentContextConverter;
-import jakarta.persistence.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -56,7 +64,8 @@ public class Module {
     private EnvironmentContext actualModel;
 
     @Transient
-    private List<AssetConnectionConfig> assetConnections;
+    @Builder.Default
+    private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
 
     public SmartService getServiceById(Long serviceId) {
         return services.stream()

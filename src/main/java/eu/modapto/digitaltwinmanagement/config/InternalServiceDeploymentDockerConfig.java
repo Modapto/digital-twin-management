@@ -12,23 +12,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.response;
+package eu.modapto.digitaltwinmanagement.config;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(name = "ModuleResponse")
-public class ModuleResponseDto {
-    private long id;
-    private String endpoint;
-    private List<SmartServiceResponseDto> services;
-}
+@Component
+@ConfigurationProperties(prefix = "service.internal.deployment.docker")
+@Getter
+@Setter
+public class InternalServiceDeploymentDockerConfig extends DockerConfig {}

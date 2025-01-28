@@ -14,19 +14,25 @@
  */
 package eu.modapto.digitaltwinmanagement.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
+import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @Service
@@ -41,6 +47,9 @@ public class SmartServiceService {
 
     @Autowired
     private ModuleRepository moduleRepository;
+
+    @Autowired
+    private ObjectMapper mapper;
 
     @Autowired
     private DigitalTwinManager dtManager;
@@ -68,10 +77,11 @@ public class SmartServiceService {
     }
 
 
-    public SmartService addServiceToModule(Long moduleId, long serviceId) throws Exception {
+    public SmartService addServiceToModule(Long moduleId, SmartServiceRequestDto request) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
-        SmartService service = getServiceDetails(serviceId);
+        SmartService service = getServiceDetails(request.getServiceId());
+        applyRequestOverrides(service, request);
         service.setModule(module);
         smartServiceRepository.save(service);
         module.getServices().add(service);
@@ -81,13 +91,45 @@ public class SmartServiceService {
     }
 
 
-    private SmartService getServiceDetails(long serviceId) {
+    private static void applyRequestOverrides(SmartService service, SmartServiceRequestDto request) {
+        if (Objects.nonNull(request.getDescription())) {
+            service.setName(request.getName());
+        }
+        else {
+            service.setName(String.format("%s_%s",
+                    service.getName(),
+                    UUID.randomUUID().toString().replace("-", "").substring(0, 16)));
+        }
+        if (Objects.nonNull(request.getDescription())) {
+            service.setDescription(request.getDescription());
+        }
+        if (Objects.nonNull(request.getInputParameters())) {
+            service.setInputParameters(request.getInputParameters());
+        }
+        if (Objects.nonNull(request.getOutputParameters())) {
+            service.setOutputParameters(request.getOutputParameters());
+        }
+        if (Objects.nonNull(request.getInputArgumentTypes())) {
+            service.setInputArgumentTypes(request.getInputArgumentTypes());
+        }
+        if (Objects.nonNull(request.getOutputArgumentTypes())) {
+            service.setOutputArgumentTypes(request.getOutputArgumentTypes());
+        }
+    }
+
+
+    private SmartService getServiceDetails(String serviceId) {
         SmartService result = RestClient.create(serviceCatalogueEndpoint)
                 .get()
                 .uri("/service/{serviceId}", serviceId)
-                .retrieve()
-                .toEntity(SmartService.class)
-                .getBody();
+                .exchange((request, response) -> {
+                    if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
+                        return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
+                    }
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_GATEWAY,
+                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s", serviceCatalogueEndpoint));
+                });
         result.setServiceId(serviceId);
         return result;
     }

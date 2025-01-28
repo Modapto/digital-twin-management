@@ -28,4 +28,4 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @Entity
 @DiscriminatorValue("External")
-public class ExternalSmartService extends SmartService {}
+public class ExternalSmartService extends RestBasedSmartService {}

@@ -19,17 +19,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.command.StartContainerCmd;
-import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Info;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Volume;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientBuilder;
-import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
@@ -38,72 +27,64 @@ import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMem
 import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorDocker.class);
     private static final String CONTAINER_MODEL_FILE = "/app/model.aasx";
     private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
     private static final int CONTAINER_PORT_INTERNAL = 8080;
 
-    private final DockerClient dockerClient;
-    private final DockerConfig dockerConfig;
+    private final DigitalTwinDeploymentDockerConfig dockerConfig;
     private final Path contextPath = Files.createTempDirectory("dt-context-files");
     private final File modelFile = contextPath.resolve("model.aasx").toFile();
     private final File configFile = contextPath.resolve("config.json").toFile();
 
+    private DockerClient dockerClient;
     private String containerId;
     private boolean running = false;
-    private boolean convertPaths;
+    private boolean dockerAvailable = false;
 
-    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DockerConfig dockerConfig) throws Exception {
+    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DigitalTwinDeploymentDockerConfig dockerConfig) throws Exception {
         super(config);
         this.dockerConfig = dockerConfig;
-        dockerClient = DockerClientBuilder
-                .getInstance(DefaultDockerClientConfig
-                        .createDefaultConfigBuilder()
-                        .withRegistryUsername("mjacoby")
-                        .withRegistryPassword("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")
-                        .withRegistryUrl(dockerConfig.getRegistry())
-                        .build())
-                .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
-                        .dockerHost(new URI(dockerConfig.getHost()))
-                        .build())
-                .build();
-        dockerClient.pingCmd().exec();
+        try {
+            dockerClient = DockerHelper.newClient(dockerConfig);
+            dockerClient.pingCmd().exec();
+            dockerAvailable = true;
+        }
+        catch (Exception e) {
+            LOGGER.warn("Unable to connect to docker daemon. Requests to deploy Modules via docker will fail, internal deployment will work. (reason: {})", e.getCause(), e);
+        }
         initContainer();
     }
 
 
     @Override
     public void start() throws Exception {
+        ensureDockerAvailable();
         if (running) {
             return;
         }
-        CreateContainerResponse container = dockerClient.createContainerCmd(dockerConfig.getImage())
-                .withExposedPorts(new ExposedPort(CONTAINER_PORT_INTERNAL))
-                .withHostConfig(new HostConfig()
-                        .withBinds(
-                                new Bind(getHostFilename(modelFile), new Volume(CONTAINER_MODEL_FILE)),
-                                new Bind(getHostFilename(configFile), new Volume(CONTAINER_CONFIG_FILE)))
-                        .withPortBindings(
-                                PortBinding.parse(String.format("%d:%d", config.getPort(), CONTAINER_PORT_INTERNAL))))
-                .withEnv(
-                        String.format("faaast_model=%s", CONTAINER_MODEL_FILE),
-                        String.format("faaast_config=%s", CONTAINER_CONFIG_FILE),
-                        "faaast_loglevel_faaast=TRACE")
-                .exec();
-        StartContainerCmd startCmd = dockerClient.startContainerCmd(container.getId());
-        startCmd.exec();
-        containerId = container.getId();
+        containerId = DockerHelper.startContainer(
+                dockerClient,
+                dockerConfig.getImage(),
+                Map.of(config.getPort(), CONTAINER_PORT_INTERNAL),
+                Map.of(modelFile, CONTAINER_MODEL_FILE, configFile, CONTAINER_CONFIG_FILE),
+                Map.of("faaast_model", CONTAINER_MODEL_FILE,
+                        "faaast_config", CONTAINER_CONFIG_FILE,
+                        "faaast_loglevel_faaast", "TRACE"));
         running = true;
-        System.out.println("Container started with ID: " + container.getId());
+        LOGGER.info("docker container started with ID {}", containerId);
     }
 
 
@@ -112,30 +93,23 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         if (!running) {
             return;
         }
-        dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+        if (dockerAvailable) {
+            DockerHelper.stopContainer(dockerClient, containerId);
+        }
         running = false;
     }
 
 
     private void initContainer() throws IOException, SerializationException {
-        detectConvertPaths();
         writeConfigFile();
         writeModelFile();
     }
 
 
-    private void detectConvertPaths() {
-        Info info = dockerClient.infoCmd().exec();
-        convertPaths = (Objects.nonNull(info.getKernelVersion()) && info.getKernelVersion().toLowerCase().contains("wsl"))
-                || (System.getProperty("os.name", "").toLowerCase().startsWith("windows") && !info.getOsType().toLowerCase().startsWith("windows"));
-    }
-
-
-    private String getHostFilename(File file) {
-        if (!convertPaths) {
-            return file.getAbsolutePath();
+    private void ensureDockerAvailable() {
+        if (!dockerAvailable) {
+            throw new RuntimeException("Deployment via docker not possible");
         }
-        return file.getAbsolutePath().replace("C:", "/mnt/c").replace("\\", "/");
     }
 
 

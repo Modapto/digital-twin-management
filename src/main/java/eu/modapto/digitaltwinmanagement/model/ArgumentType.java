@@ -12,23 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.response;
+package eu.modapto.digitaltwinmanagement.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(name = "ModuleResponse")
-public class ModuleResponseDto {
-    private long id;
-    private String endpoint;
-    private List<SmartServiceResponseDto> services;
+public enum ArgumentType {
+    CONSTANT,
+    USER,
+    REFERENCE
 }

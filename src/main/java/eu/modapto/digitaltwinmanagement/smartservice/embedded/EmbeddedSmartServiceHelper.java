@@ -15,21 +15,38 @@
 package eu.modapto.digitaltwinmanagement.smartservice.embedded;
 
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.model.submodeltemplate.Cardinality;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
+import eu.modapto.dt.faaast.service.smt.simulation.FmuHelper;
+import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
+import no.ntnu.ihb.fmi4j.importer.fmi2.Fmu;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.aasx.InMemoryFile;
+import org.eclipse.digitaltwin.aas4j.v3.model.AasSubmodelElements;
+import org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd;
+import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
+import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
+import org.eclipse.digitaltwin.aas4j.v3.model.QualifierKind;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElementCollection;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultFile;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultLangStringTextType;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperation;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperationVariable;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollection;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementList;
 
 
 public class EmbeddedSmartServiceHelper {
@@ -45,23 +62,145 @@ public class EmbeddedSmartServiceHelper {
     private static final String ID_SHORT_MODEL_FILE_VERSION = "ModelFileVersion";
     private static final String ID_SHORT_DIGITAL_FILE = "DigitalFile";
 
-    public static void addSmartService(EnvironmentContext environmentContext, EmbeddedSmartService service) {
-        Submodel submodel = getSubmodel(environmentContext);
-        if (Objects.isNull(submodel)) {
-            submodel = createSubmodel();
-            environmentContext.getEnvironment().getSubmodels().add(submodel);
-            environmentContext.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels().add(ReferenceBuilder.forSubmodel(submodel));
+    private static final String ARG_CURRENT_TIME_ID = "currentTime";
+    private static final String ARG_TIME_STEP_ID = "timeStep";
+    private static final String ARG_STEP_NUMBER_ID = "stepNumber";
+    private static final String ARG_STEP_COUNT_ID = "stepCount";
+    private static final String ARG_ARGS_PER_STEP_ID = "argumentsPerStep";
+    private static final String ARG_RESULT_PER_STEP_ID = "resultPerStep";
+
+    private static final String SMC_SIMULATION_MODELS_PREFIX = "SimulationModel_";
+
+    private static final OperationVariable ARG_CURRENT_TIME = new DefaultOperationVariable.Builder()
+            .value(new DefaultProperty.Builder()
+                    .idShort(ARG_CURRENT_TIME_ID)
+                    .description(new DefaultLangStringTextType.Builder()
+                            .language("en")
+                            .text("name of the newly created instance")
+                            .build())
+                    .valueType(DataTypeDefXsd.STRING)
+                    .build())
+            .build();
+
+    private static final OperationVariable ARG_TIME_STEP = new DefaultOperationVariable.Builder()
+            .value(new DefaultProperty.Builder()
+                    .idShort(ARG_TIME_STEP_ID)
+                    .description(new DefaultLangStringTextType.Builder()
+                            .language("en")
+                            .text("time step size")
+                            .build())
+                    .valueType(DataTypeDefXsd.DOUBLE)
+                    .build())
+            .build();
+
+    private static final OperationVariable ARG_STEP_COUNT = new DefaultOperationVariable.Builder()
+            .value(new DefaultProperty.Builder()
+                    .idShort(ARG_STEP_COUNT_ID)
+                    .description(new DefaultLangStringTextType.Builder()
+                            .language("en")
+                            .text("number of steps to execute")
+                            .build())
+                    .valueType(DataTypeDefXsd.INTEGER)
+                    .build())
+            .build();
+
+    private static void initializeOperation(Operation operation, EmbeddedSmartService service) {
+        try {
+            Fmu fmu = FmuHelper.loadFmu(service.getName(), service.getFmu());
+
+            List<OperationVariable> inputVariables = List.of(
+                    ARG_CURRENT_TIME,
+                    ARG_TIME_STEP,
+                    ARG_STEP_COUNT,
+                    newMultiStepArg(FmuHelper.getInputArgumentsMetadata(fmu)));
+            if (Objects.nonNull(service.getInputParameters()) && !service.getInputParameters().isEmpty()) {
+                inputVariables.removeIf(x -> service.getInputParameters().stream()
+                        .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
+            }
+            List<OperationVariable> outputVariables = List.of(newMultiStepResult(FmuHelper.getOutputArgumentsMetadata(fmu)));
+            if (Objects.nonNull(service.getOutputParameters()) && !service.getOutputParameters().isEmpty()) {
+                outputVariables.removeIf(x -> service.getOutputParameters().stream()
+                        .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
+            }
+            operation.setIdShort(service.getName());
+            operation.setInputVariables(inputVariables);
+            operation.setOutputVariables(outputVariables);
         }
-        Optional<SubmodelElement> simulationModel = submodel.getSubmodelElements().stream()
-                .filter(x -> Objects.equals(x.getIdShort(), service.getName()))
-                .filter(x -> ReferenceHelper.equals(x.getSemanticId(), SEMANTIC_ID_SIMULATION_MODEL))
-                .findFirst();
-        if (simulationModel.isPresent()) {
-            throw new IllegalArgumentException(String.format("simulation model already exists (name/id: %s)", service.getName()));
+        catch (IOException e) {
+            throw new IllegalArgumentException(String.format("Error loading FMU file (reason: %s)", e.getMessage()));
+        }
+    }
+
+
+    private static String simulationModelName(EmbeddedSmartService service) {
+        return SMC_SIMULATION_MODELS_PREFIX + service.getName();
+    }
+
+
+    public static Operation addSmartService(EnvironmentContext environmentContext, Submodel submodel, EmbeddedSmartService service) {
+        if (!ReferenceHelper.equals(SEMANTIC_ID_SMT_SIMULATION, submodel.getSemanticId())) {
+            submodel.setSemanticId(SEMANTIC_ID_SMT_SIMULATION);
         }
         submodel.getSubmodelElements().add(createSimulationModel(service));
         environmentContext.getFiles().add(new InMemoryFile(service.getFmu(), getFmuFilename(service)));
-        service.setEndpoint(getSmartServiceEndpoint(service, submodel));
+
+        Operation operation = submodel.getSubmodelElements().stream()
+                .filter(Operation.class::isInstance)
+                .filter(x -> Objects.equals(service.getName(), x.getIdShort()))
+                .map(Operation.class::cast)
+                .findFirst()
+                .orElse(new DefaultOperation());
+        if (StringHelper.isEmpty(operation.getIdShort())) {
+            submodel.getSubmodelElements().add(operation);
+        }
+        initializeOperation(operation, service);
+        return operation;
+    }
+
+
+    private static OperationVariable newMultiStepArg(List<OperationVariable> originalArgs) {
+        return new DefaultOperationVariable.Builder()
+                .value(new DefaultSubmodelElementList.Builder()
+                        .idShort(ARG_ARGS_PER_STEP_ID)
+                        .typeValueListElement(AasSubmodelElements.SUBMODEL_ELEMENT_COLLECTION)
+                        .value(new DefaultSubmodelElementCollection.Builder()
+                                .value(
+                                        Stream.concat(
+                                                Stream.of(new DefaultProperty.Builder()
+                                                        .idShort(ARG_STEP_NUMBER_ID)
+                                                        .valueType(DataTypeDefXsd.INTEGER)
+                                                        .build()),
+                                                originalArgs.stream().map(OperationVariable::getValue))
+                                                .toList())
+                                .qualifiers(new DefaultQualifier.Builder()
+                                        .kind(QualifierKind.TEMPLATE_QUALIFIER)
+                                        .valueType(DataTypeDefXsd.STRING)
+                                        .value(Cardinality.ZERO_TO_MANY.getNameForSerialization())
+                                        .type(Cardinality.class.getSimpleName())
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+    }
+
+
+    private static OperationVariable newMultiStepResult(List<OperationVariable> originalArgs) {
+        return new DefaultOperationVariable.Builder()
+                .value(new DefaultSubmodelElementList.Builder()
+                        .idShort(ARG_RESULT_PER_STEP_ID)
+                        .typeValueListElement(AasSubmodelElements.SUBMODEL_ELEMENT_COLLECTION)
+                        .value(new DefaultSubmodelElementCollection.Builder()
+                                .value(
+                                        Stream.concat(
+                                                Stream.of(new DefaultProperty.Builder()
+                                                        .idShort(ARG_STEP_NUMBER_ID)
+                                                        .valueType(DataTypeDefXsd.INTEGER)
+                                                        .build()),
+                                                originalArgs.stream().map(OperationVariable::getValue))
+                                                .toList())
+                                .build())
+                        .build())
+                .build();
     }
 
 
@@ -82,20 +221,12 @@ public class EmbeddedSmartServiceHelper {
         }
         submodel.getSubmodelElements().remove(simulationModel.get());
         environmentContext.getFiles().removeIf(x -> Objects.equals(x.getPath(), getFmuFilename(service)));
-        service.setEndpoint(null);
+        service.setOperationEndpoint(null);
     }
 
 
     private static String getFmuFilename(EmbeddedSmartService service) {
         return "/" + service.getName() + ".fmu";
-    }
-
-
-    private static String getSmartServiceEndpoint(EmbeddedSmartService service, Submodel submodel) {
-        // [server]:[port}/api/v3.0/{submodelId}/submodel-elements/{idShortPath}/invoke
-        return String.format("/submodels/%s/submodel-elements/%s-RunSimulation",
-                EncodingHelper.base64UrlEncode(submodel.getId()),
-                service.getName());
     }
 
 
@@ -125,7 +256,7 @@ public class EmbeddedSmartServiceHelper {
     private static SubmodelElementCollection createSimulationModel(EmbeddedSmartService service) {
         return new DefaultSubmodelElementCollection.Builder()
                 .semanticId(SEMANTIC_ID_SIMULATION_MODEL)
-                .idShort(service.getName())
+                .idShort(simulationModelName(service))
                 .value(new DefaultSubmodelElementCollection.Builder()
                         .semanticId(SEMANTIC_ID_MODEL_FILE)
                         .idShort(ID_SHORT_MODEL_FILE)

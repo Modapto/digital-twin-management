@@ -12,23 +12,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.response;
+package eu.modapto.digitaltwinmanagement.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import java.util.Map;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
 @Data
-@Builder
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
-@AllArgsConstructor
-@Schema(name = "ModuleResponse")
-public class ModuleResponseDto {
-    private long id;
-    private String endpoint;
-    private List<SmartServiceResponseDto> services;
+@SuperBuilder
+@Entity
+public abstract class RestBasedSmartService extends SmartService {
+    private String httpEndpoint;
+    private String method;
+    @ElementCollection
+    private Map<String, String> headers;
+    @ElementCollection
+    private Map<String, String> outputMapping;
+    private String payload;
 }

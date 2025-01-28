@@ -17,6 +17,7 @@ package eu.modapto.digitaltwinmanagement.model.request;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -29,11 +30,19 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(name = "ModuleRequest")
 public class ModuleRequestDto {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
     private String aas;
+
     @Builder.Default
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "JSON")
     private DataFormat format = DataFormat.JSON;
+
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "INTERNAL")
     private DigitalTwinConnectorType type;
+
     @Builder.Default
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
 }

@@ -12,10 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model;
+package eu.modapto.digitaltwinmanagement.model.response.external.catalog;
 
-import jakarta.persistence.DiscriminatorValue;
-import jakarta.persistence.Entity;
+import eu.modapto.digitaltwinmanagement.model.ExternalSmartService;
+import eu.modapto.digitaltwinmanagement.model.SmartService;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -26,10 +26,17 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 @SuperBuilder
 @NoArgsConstructor
-@Entity
-@DiscriminatorValue("Internal")
-public class InternalSmartService extends RestBasedSmartService {
-    private String image;
-    private int internalPort;
-    private String containerId;
+public class ExternalServiceDetailsResponseDto extends ServiceDetailsResponseDto {
+    private RestDetails restDetails;
+
+    @Override
+    protected SmartService asSmartServiceInternal() {
+        return ExternalSmartService.builder()
+                .httpEndpoint(restDetails.getEndpoint())
+                .method(restDetails.getMethod())
+                .headers(restDetails.getHeaders())
+                .outputMapping(restDetails.getOutputMapping())
+                .payload(restDetails.getPayload())
+                .build();
+    }
 }

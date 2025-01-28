@@ -27,7 +27,11 @@ public class SmartServiceMapper {
         return SmartServiceResponseDto.builder()
                 .id(service.getId())
                 .serviceId(service.getServiceId())
-                .endpoint(service.getEndpoint())
+                .endpoint(service.getOperationEndpoint())
+                .name(service.getName())
+                .description(service.getDescription())
+                .inputArgumentTypes(service.getInputArgumentTypes())
+                .outputArgumentTypes(service.getOutputArgumentTypes())
                 .build();
     }
 }

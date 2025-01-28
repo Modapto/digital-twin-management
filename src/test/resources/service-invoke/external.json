@@ -1,0 +1,7 @@
+{
+	"inputArguments": {
+		"name": "bar"
+	},
+	"inoutputArguments": {},
+	"clientTimeoutDuration": "PT60S"
+}

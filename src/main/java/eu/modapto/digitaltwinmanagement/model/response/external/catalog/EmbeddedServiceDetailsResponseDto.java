@@ -12,23 +12,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.response;
+package eu.modapto.digitaltwinmanagement.model.response.external.catalog;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
+import eu.modapto.digitaltwinmanagement.model.SmartService;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 
 @Data
-@Builder
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
 @NoArgsConstructor
-@AllArgsConstructor
-@Schema(name = "ModuleResponse")
-public class ModuleResponseDto {
-    private long id;
-    private String endpoint;
-    private List<SmartServiceResponseDto> services;
+public class EmbeddedServiceDetailsResponseDto extends ServiceDetailsResponseDto {
+    private byte[] fmu;
+
+    @Override
+    protected SmartService asSmartServiceInternal() {
+        return EmbeddedSmartService.builder()
+                .fmu(fmu)
+                .build();
+    }
 }

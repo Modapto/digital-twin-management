@@ -1,0 +1,601 @@
+openapi: 3.0.1
+info:
+  title: Digital Twin Management API
+  description: API documentation for Digital Twin Management
+  version: 1.0.0-SNAPSHOT
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+tags:
+- name: Smart Service Operations
+  description: Operations related to smart service management
+- name: Module Operations
+  description: Operations related to module management
+paths:
+  /module/{moduleId}:
+    get:
+      tags:
+      - Module Operations
+      summary: Get module by ID
+      description: Returns the details of an existing module by its ID
+      operationId: getModule
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleResponse"
+    put:
+      tags:
+      - Module Operations
+      summary: Update an existing module
+      description: Updates the details of an existing module
+      operationId: updateModule
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleRequest"
+        required: true
+      responses:
+        "200":
+          description: Module updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleResponse"
+    delete:
+      tags:
+      - Module Operations
+      summary: Delete a module
+      description: Deletes a module by its ID
+      operationId: deleteModule
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Module deleted successfully
+  /{moduleId}/service:
+    get:
+      tags:
+      - Smart Service Operations
+      summary: Get services for a module
+      description: Returns a list of services associated with the specified module
+      operationId: getServicesForModule
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SmartServiceResponse"
+    post:
+      tags:
+      - Smart Service Operations
+      summary: Create a new smart service
+      description: Creates a new smart service withing a service based on the provided
+        details
+      operationId: createService
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmartServiceRequest"
+        required: true
+      responses:
+        "200":
+          description: Smart service created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartServiceResponse"
+  /module:
+    get:
+      tags:
+      - Module Operations
+      summary: Get all modules
+      description: Returns a list of all modules
+      operationId: getAllModules
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModuleResponse"
+    post:
+      tags:
+      - Module Operations
+      summary: Create a new module
+      description: Creates a new module based on the provided details
+      operationId: createModule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleRequest"
+        required: true
+      responses:
+        "201":
+          description: Module created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleResponse"
+  /service:
+    get:
+      tags:
+      - Smart Service Operations
+      summary: Get all smart services
+      description: Returns a list of all smart services
+      operationId: getAllSmartServices
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SmartServiceResponse"
+  /service/{serviceId}:
+    get:
+      tags:
+      - Smart Service Operations
+      summary: Get smart service by ID
+      description: Returns the details of an existing smart service by its ID
+      operationId: getSmartService
+      parameters:
+      - name: serviceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartServiceResponse"
+    delete:
+      tags:
+      - Smart Service Operations
+      summary: Delete a smart service
+      description: Deletes a smart service by its ID
+      operationId: deleteSmartService
+      parameters:
+      - name: serviceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Smart service deleted successfully
+  /{moduleId}/service/{serviceId}:
+    delete:
+      tags:
+      - Smart Service Operations
+      summary: Delete a service from a module
+      description: Deletes a service by its ID from the specified module
+      operationId: deleteServiceFromModule
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: serviceId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Service deleted from module successfully
+components:
+  schemas:
+    AssetConnectionConfig:
+      type: object
+      properties:
+        operationProviders:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AssetOperationProviderConfig"
+        subscriptionProviders:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AssetSubscriptionProviderConfig"
+        valueProviders:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AssetValueProviderConfig"
+    AssetOperationProviderConfig:
+      type: object
+      properties:
+        inoutputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
+        outputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
+        inputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
+    AssetSubscriptionProviderConfig:
+      type: object
+    AssetValueProviderConfig:
+      type: object
+    ModuleRequest:
+      required:
+      - aas
+      type: object
+      properties:
+        aas:
+          type: string
+        format:
+          type: string
+          default: JSON
+          enum:
+          - JSON
+          - XML
+          - RDF
+          - JSONLD
+          - AASX
+        type:
+          type: string
+          default: INTERNAL
+          enum:
+          - DOCKER
+          - INTERNAL
+        assetConnections:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssetConnectionConfig"
+    ArgumentMapping:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - CONSTANT
+          - USER
+          - REFERENCE
+        value:
+          type: string
+          description: "When type == CONSTANT this contains the constant value, when\
+            \ typpe == REFERENCE this contains the string serialized reference to\
+            \ the reference AAS element, e.g. (Submodel)http://example.com/submodels/1,\
+            \ (Property)my_referenced_property and for type == USER this property\
+            \ is ignored."
+    ModuleResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        endpoint:
+          type: string
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmartServiceResponse"
+    SmartServiceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceId:
+          type: string
+        endpoint:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        inputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+        outputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+    DataSpecificationContent:
+      type: object
+    EmbeddedDataSpecification:
+      type: object
+      properties:
+        dataSpecification:
+          $ref: "#/components/schemas/Reference"
+        dataSpecificationContent:
+          $ref: "#/components/schemas/DataSpecificationContent"
+    Extension:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        valueType:
+          type: string
+          enum:
+          - ANY_URI
+          - BASE64BINARY
+          - BOOLEAN
+          - BYTE
+          - DATE
+          - DATE_TIME
+          - DECIMAL
+          - DOUBLE
+          - DURATION
+          - FLOAT
+          - GDAY
+          - GMONTH
+          - GMONTH_DAY
+          - GYEAR
+          - GYEAR_MONTH
+          - HEX_BINARY
+          - INT
+          - INTEGER
+          - LONG
+          - NEGATIVE_INTEGER
+          - NON_NEGATIVE_INTEGER
+          - NON_POSITIVE_INTEGER
+          - POSITIVE_INTEGER
+          - SHORT
+          - STRING
+          - TIME
+          - UNSIGNED_BYTE
+          - UNSIGNED_INT
+          - UNSIGNED_LONG
+          - UNSIGNED_SHORT
+        refersTo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
+        supplementalSemanticIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
+    Key:
+      type: object
+      properties:
+        value:
+          type: string
+        type:
+          type: string
+          enum:
+          - ANNOTATED_RELATIONSHIP_ELEMENT
+          - ASSET_ADMINISTRATION_SHELL
+          - BASIC_EVENT_ELEMENT
+          - BLOB
+          - CAPABILITY
+          - CONCEPT_DESCRIPTION
+          - DATA_ELEMENT
+          - ENTITY
+          - EVENT_ELEMENT
+          - FILE
+          - FRAGMENT_REFERENCE
+          - GLOBAL_REFERENCE
+          - IDENTIFIABLE
+          - MULTI_LANGUAGE_PROPERTY
+          - OPERATION
+          - PROPERTY
+          - RANGE
+          - REFERABLE
+          - REFERENCE_ELEMENT
+          - RELATIONSHIP_ELEMENT
+          - SUBMODEL
+          - SUBMODEL_ELEMENT
+          - SUBMODEL_ELEMENT_COLLECTION
+          - SUBMODEL_ELEMENT_LIST
+    LangStringNameType:
+      type: object
+      properties:
+        language:
+          type: string
+        text:
+          type: string
+    LangStringTextType:
+      type: object
+      properties:
+        language:
+          type: string
+        text:
+          type: string
+    Qualifier:
+      type: object
+      properties:
+        value:
+          type: string
+        type:
+          type: string
+        kind:
+          type: string
+          enum:
+          - CONCEPT_QUALIFIER
+          - TEMPLATE_QUALIFIER
+          - VALUE_QUALIFIER
+        valueType:
+          type: string
+          enum:
+          - ANY_URI
+          - BASE64BINARY
+          - BOOLEAN
+          - BYTE
+          - DATE
+          - DATE_TIME
+          - DECIMAL
+          - DOUBLE
+          - DURATION
+          - FLOAT
+          - GDAY
+          - GMONTH
+          - GMONTH_DAY
+          - GYEAR
+          - GYEAR_MONTH
+          - HEX_BINARY
+          - INT
+          - INTEGER
+          - LONG
+          - NEGATIVE_INTEGER
+          - NON_NEGATIVE_INTEGER
+          - NON_POSITIVE_INTEGER
+          - POSITIVE_INTEGER
+          - SHORT
+          - STRING
+          - TIME
+          - UNSIGNED_BYTE
+          - UNSIGNED_INT
+          - UNSIGNED_LONG
+          - UNSIGNED_SHORT
+        valueId:
+          $ref: "#/components/schemas/Reference"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
+        supplementalSemanticIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
+    Reference:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - EXTERNAL_REFERENCE
+          - MODEL_REFERENCE
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/Key"
+        referredSemanticId:
+          $ref: "#/components/schemas/Reference"
+    SmartServiceRequest:
+      required:
+      - name
+      - serviceId
+      type: object
+      properties:
+        serviceId:
+          maxLength: 1023
+          minLength: 1
+          type: string
+        name:
+          maxLength: 128
+          minLength: 1
+          pattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
+          type: string
+        description:
+          maxLength: 1023
+          minLength: 0
+          type: string
+        inputParameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmodelElement"
+        outputParameters:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmodelElement"
+        inputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+          description: Allows to change input arguments source from user to constant
+            value or to be fetched from another AAS element
+        outputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+          description: Allows to change output arguments source from user to constant
+            value or to be written to another AAS element
+    SubmodelElement:
+      type: object
+      properties:
+        embeddedDataSpecifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmbeddedDataSpecification"
+        displayName:
+          type: array
+          items:
+            $ref: "#/components/schemas/LangStringNameType"
+        description:
+          type: array
+          items:
+            $ref: "#/components/schemas/LangStringTextType"
+        idShort:
+          type: string
+        category:
+          type: string
+        extensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
+        supplementalSemanticIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
+        qualifiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Qualifier"

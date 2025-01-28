@@ -1,0 +1,57 @@
+
+{
+    "id": "SERVICE_CATALOG/_272fcb1e-9447-4dd7-8a88-8c229859fcc7/service.json",
+    "name": "FFT_Optimization_service_internal",
+    "description_short": "The service perform the optimization of robot movements for the FFT robot code.",
+    "description_long": "...",
+    "sources": "http://127.0.0.1:8080/",
+    "logo": "",
+    "affiliation": "BOC",
+    "contact": "damiano.falcioni@boc-group.com",
+    "keywords": "test",
+    "type": "internal",
+    "input": [            
+        {
+            "modelType": "SubmodelElementCollection",
+            "idShort": "data",
+            "value": [
+                {
+                    "modelType": "Property",
+                    "idShort": "input1",
+                    "valueType": "xs:double"
+                }
+            ]
+        },
+        {
+            "modelType": "Property",
+            "idShort": "input2",
+            "valueType": "xs:double"
+        }
+    ],
+    "output": [
+        {                        
+            "modelType": "Property",
+            "idShort": "result",
+            "valueType": "xs:double"
+        }
+    ],
+    "container":
+            {
+                "image": "internal-service-mock:latest",
+                "internalPort": "5001"
+            },
+    "restDetails":
+            {
+                "endpoint": "http://${container}/add",
+                "method": "POST",
+                "headers":
+                        {
+                            "Content-Type": "application/json"
+                        },
+                "outputMapping":
+                        {
+                            "result": "$.result"
+                        },
+                "payload": "{ \"data\":  ${data}, \"input2\": ${input2} }"
+            }
+}

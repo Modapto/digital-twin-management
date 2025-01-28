@@ -12,23 +12,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.model.response;
+package eu.modapto.digitaltwinmanagement.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 
 @Data
-@Builder
+@EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(name = "ModuleResponse")
-public class ModuleResponseDto {
-    private long id;
-    private String endpoint;
-    private List<SmartServiceResponseDto> services;
+@Builder
+@Embeddable
+public class ArgumentMapping {
+    @Builder.Default
+    private ArgumentType type = ArgumentType.USER;
+    @Builder.Default
+    @Column(name = "argument_value")
+    @Schema(description = "When type == CONSTANT this contains the constant value, when typpe == REFERENCE this contains the string serialized reference to the reference AAS element, e.g. (Submodel)http://example.com/submodels/1, (Property)my_referenced_property and for type == USER this property is ignored.")
+    private String value = null;
 }
