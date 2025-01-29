@@ -15,7 +15,7 @@
     <description>Manages MODAPTO Modules and Smart Servicies</description>
     <properties>
         <docker-java.version>3.4.0</docker-java.version>
-        <faaast.version>1.2.0-SNAPSHOT</faaast.version>
+        <faaast.version>1.2.0</faaast.version>
         <fmi4j.version>0.38.0</fmi4j.version>
         <jackson.databind.version>2.18.2</jackson.databind.version>
         <jackson.version>2.18.2</jackson.version>
