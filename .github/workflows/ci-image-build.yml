@@ -31,6 +31,17 @@ jobs:
       with:
          submodules: 'recursive'
 
+    - name: Cache maven repository
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.m2/repository
+          ~/.sonar/cache
+        key: ${{ format('branch-{0}-{1}-maven-{2}', github.ref_name, runner.os, hashFiles('**/pom.xml')) }}
+        restore-keys: |
+          ${{ format('branch-{0}-{1}-maven', github.ref_name, runner.os) }}
+          ${{ format('{0}-maven', runner.os) }}
+
     - name: Set up Docker
       run: |
         docker info
