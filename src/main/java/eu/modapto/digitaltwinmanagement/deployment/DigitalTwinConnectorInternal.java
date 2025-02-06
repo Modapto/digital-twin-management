@@ -18,7 +18,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.Service;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
 import java.util.stream.Collectors;
@@ -40,7 +40,10 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
                 .persistence(PersistenceInMemoryConfig.builder()
                         .initialModel(config.getEnvironmentContext().getEnvironment())
                         .build())
-                .messageBus(MessageBusInternalConfig.builder().build())
+                .messageBus(MessageBusMqttConfig.builder()
+                        .internal(true)
+                        .port(config.getMessageBusPort())
+                        .build())
                 .fileStorage(FileStorageInMemoryConfig.builder()
                         .files(config.getEnvironmentContext().getFiles().stream()
                                 .collect(Collectors.toMap(

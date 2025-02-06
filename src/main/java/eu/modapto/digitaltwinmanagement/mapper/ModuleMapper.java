@@ -16,9 +16,12 @@ package eu.modapto.digitaltwinmanagement.mapper;
 
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.DeserializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
+import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
+import eu.modapto.digitaltwinmanagement.model.response.ModuleDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleResponseDto;
 import java.io.ByteArrayInputStream;
 
@@ -44,6 +47,18 @@ public class ModuleMapper {
                 .id(module.getId())
                 .endpoint(module.getEndpoint())
                 .services(module.getServices().stream().map(SmartServiceMapper::toDto).toList())
+                .build();
+    }
+
+
+    public static ModuleDetailsResponseDto toDetailsDto(Module module) throws SerializationException {
+        return ModuleDetailsResponseDto.builder()
+                .actualModel(new String(EncodingHelper.base64Encode(EnvironmentSerializationManager
+                        .serializerFor(DataFormat.JSON)
+                        .write(module.getActualModel()))))
+                .providedModel(new String(EncodingHelper.base64Encode(EnvironmentSerializationManager
+                        .serializerFor(DataFormat.JSON)
+                        .write(module.getProvidedModel()))))
                 .build();
     }
 }

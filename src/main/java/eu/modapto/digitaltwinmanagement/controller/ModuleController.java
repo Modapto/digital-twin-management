@@ -14,10 +14,11 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
-import de.fraunhofer.iosb.ilt.faaast.service.dataformat.DeserializationException;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import eu.modapto.digitaltwinmanagement.mapper.ModuleMapper;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
+import eu.modapto.digitaltwinmanagement.model.response.ModuleDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleResponseDto;
 import eu.modapto.digitaltwinmanagement.service.ModuleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,17 +70,24 @@ public class ModuleController {
     }
 
 
-    @Operation(summary = "Get module by ID", description = "Returns the details of an existing module by its ID")
+    @Operation(summary = "Get module by ID", description = "Returns an existing module by its ID")
     @GetMapping("/{moduleId}")
     public ModuleResponseDto getModule(@PathVariable Long moduleId) {
         return ModuleMapper.toDto(moduleService.getModuleById(moduleId));
     }
 
 
+    @Operation(summary = "Get module details by ID", description = "Returns the details of an existing module by its ID")
+    @GetMapping("/{moduleId}/details")
+    public ModuleDetailsResponseDto getModuleDetails(@PathVariable Long moduleId) throws SerializationException {
+        return ModuleMapper.toDetailsDto(moduleService.getModuleById(moduleId));
+    }
+
+
     @Operation(summary = "Update an existing module", description = "Updates the details of an existing module")
     @ApiResponse(responseCode = "200", description = "Module updated successfully")
     @PutMapping("/{moduleId}")
-    public ModuleResponseDto updateModule(@PathVariable Long moduleId, @RequestBody ModuleRequestDto module) throws DeserializationException {
+    public ModuleResponseDto updateModule(@PathVariable Long moduleId, @RequestBody ModuleRequestDto module) throws Exception {
         return ModuleMapper.toDto(moduleService.updateModule(moduleId, ModuleMapper.toEntity(module)));
     }
 

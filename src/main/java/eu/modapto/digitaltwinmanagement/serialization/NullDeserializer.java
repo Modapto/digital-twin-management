@@ -12,22 +12,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.serialization;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import java.util.List;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import de.fraunhofer.iosb.ilt.faaast.service.model.value.ElementValue;
+import java.io.IOException;
+import java.util.Map;
 
 
-@Getter
-@Setter
-@Builder
-public class DigitalTwinConfig {
-    private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
-    private List<AssetConnectionConfig> assetConnections;
+public class NullDeserializer extends JsonDeserializer<Object> {
+
+    @Override
+    public Map<String, ElementValue> deserialize(JsonParser parser, DeserializationContext context) throws IOException, JacksonException {
+        parser.skipChildren();
+        return null;
+    }
 }

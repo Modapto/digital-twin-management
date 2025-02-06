@@ -12,22 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.controller;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import java.util.List;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+public class Constants {
+    private Constants() {
 
+    }
 
-@Getter
-@Setter
-@Builder
-public class DigitalTwinConfig {
-    private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
-    private List<AssetConnectionConfig> assetConnections;
+    public static final String HTTP_HEADER_MODAPTO_INVOCATION_ID = "X-MODAPTO-Invocation-Id";
 }

@@ -16,7 +16,12 @@ package eu.modapto.digitaltwinmanagement.service;
 
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
+import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.Module;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +38,18 @@ public class ModuleService {
     @Autowired
     private ModuleRepository moduleRepository;
 
+    @Autowired
+    private KafkaBridge kafkaBridge;
+
     public Module createModule(Module module) throws Exception {
         Module result = moduleRepository.save(module);
         dtManager.deploy(module);
+        kafkaBridge.publish(ModuleCreatedEvent.builder()
+                .payload(ModuleDetailsPayload.builder()
+                        .moduleId(module.getId())
+                        .endpoint(module.getEndpoint())
+                        .build())
+                .build());
         return moduleRepository.save(result);
     }
 
@@ -45,11 +59,18 @@ public class ModuleService {
     }
 
 
-    public Module updateModule(Long moduleId, Module module) {
-        Module existingModule = moduleRepository.findById(moduleId)
+    public Module updateModule(Long moduleId, Module module) throws Exception {
+        moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
-
-        return moduleRepository.save(existingModule);
+        module.setId(moduleId);
+        dtManager.update(module);
+        kafkaBridge.publish(ModuleUpdatedEvent.builder()
+                .payload(ModuleDetailsPayload.builder()
+                        .moduleId(module.getId())
+                        .endpoint(module.getEndpoint())
+                        .build())
+                .build());
+        return moduleRepository.save(module);
     }
 
 
@@ -61,6 +82,9 @@ public class ModuleService {
             x.setModule(null);
         });
         moduleRepository.delete(module);
+        kafkaBridge.publish(ModuleDeletedEvent.builder()
+                .moduleId(moduleId)
+                .build());
     }
 
 

@@ -58,7 +58,7 @@ public abstract class ServiceDetailsResponseDto {
 
     public SmartService asSmartService() {
         SmartService result = asSmartServiceInternal();
-        result.setServiceId(id);
+        result.setServiceCatalogId(id);
         result.setName(name);
         result.setDescription(StringHelper.isBlank(descriptionShort) ? descriptionLong : descriptionShort);
         result.setInputParameters(inputParameters);

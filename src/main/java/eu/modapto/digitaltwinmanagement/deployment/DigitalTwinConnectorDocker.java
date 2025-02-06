@@ -24,7 +24,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerialization
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internal.MessageBusInternalConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
@@ -43,6 +43,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private static final String CONTAINER_MODEL_FILE = "/app/model.aasx";
     private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
     private static final int CONTAINER_PORT_INTERNAL = 8080;
+    private static final int MESSAGEBUS_PORT_INTERNAL = 1883;
 
     private final DigitalTwinDeploymentDockerConfig dockerConfig;
     private final Path contextPath = Files.createTempDirectory("dt-context-files");
@@ -63,7 +64,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             dockerAvailable = true;
         }
         catch (Exception e) {
-            LOGGER.warn("Unable to connect to docker daemon. Requests to deploy Modules via docker will fail, internal deployment will work. (reason: {})", e.getCause(), e);
+            LOGGER.warn("Unable to connect to docker daemon. Requests to deploy Modules via docker will fail, internal deployment will work. (reason: {})", e.getMessage(), e);
         }
         initContainer();
     }
@@ -78,7 +79,8 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         containerId = DockerHelper.startContainer(
                 dockerClient,
                 dockerConfig.getImage(),
-                Map.of(config.getPort(), CONTAINER_PORT_INTERNAL),
+                Map.of(config.getPort(), CONTAINER_PORT_INTERNAL,
+                        config.getMessageBusPort(), MESSAGEBUS_PORT_INTERNAL),
                 Map.of(modelFile, CONTAINER_MODEL_FILE, configFile, CONTAINER_CONFIG_FILE),
                 Map.of("faaast_model", CONTAINER_MODEL_FILE,
                         "faaast_config", CONTAINER_CONFIG_FILE,
@@ -121,7 +123,10 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .port(CONTAINER_PORT_INTERNAL)
                         .build())
                 .persistence(PersistenceInMemoryConfig.builder().build())
-                .messageBus(MessageBusInternalConfig.builder().build())
+                .messageBus(MessageBusMqttConfig.builder()
+                        .internal(true)
+                        .port(MESSAGEBUS_PORT_INTERNAL)
+                        .build())
                 .fileStorage(FileStorageInMemoryConfig.builder().build())
                 .assetConnections(config.getAssetConnections())
                 .build();

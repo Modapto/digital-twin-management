@@ -80,7 +80,7 @@ public class SmartServiceService {
     public SmartService addServiceToModule(Long moduleId, SmartServiceRequestDto request) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
-        SmartService service = getServiceDetails(request.getServiceId());
+        SmartService service = getServiceDetails(request.getServiceCatalogId());
         applyRequestOverrides(service, request);
         service.setModule(module);
         smartServiceRepository.save(service);
@@ -118,10 +118,10 @@ public class SmartServiceService {
     }
 
 
-    private SmartService getServiceDetails(String serviceId) {
+    private SmartService getServiceDetails(String serviceCatalogId) {
         SmartService result = RestClient.create(serviceCatalogueEndpoint)
                 .get()
-                .uri("/service/{serviceId}", serviceId)
+                .uri("/service/{serviceId}", serviceCatalogId)
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
                         return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
@@ -130,7 +130,7 @@ public class SmartServiceService {
                             HttpStatus.BAD_GATEWAY,
                             String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s", serviceCatalogueEndpoint));
                 });
-        result.setServiceId(serviceId);
+        result.setServiceCatalogId(serviceCatalogId);
         return result;
     }
 

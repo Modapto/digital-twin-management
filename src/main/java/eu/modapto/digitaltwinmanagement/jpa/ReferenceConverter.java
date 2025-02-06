@@ -12,22 +12,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.jpa;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import java.util.List;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 
 
-@Getter
-@Setter
-@Builder
-public class DigitalTwinConfig {
-    private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
-    private List<AssetConnectionConfig> assetConnections;
+@Converter(autoApply = false)
+public class ReferenceConverter implements AttributeConverter<Reference, String> {
+
+    @Override
+    public String convertToDatabaseColumn(Reference reference) {
+        return ReferenceHelper.asString(reference);
+    }
+
+
+    @Override
+    public Reference convertToEntityAttribute(String data) {
+        return ReferenceHelper.parse(data);
+    }
+
 }

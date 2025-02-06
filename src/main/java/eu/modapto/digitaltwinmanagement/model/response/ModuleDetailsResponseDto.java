@@ -12,22 +12,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.model.response;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
-@Getter
-@Setter
+@Data
 @Builder
-public class DigitalTwinConfig {
-    private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
-    private List<AssetConnectionConfig> assetConnections;
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(name = "ModuleDetailsResponse")
+public class ModuleDetailsResponseDto {
+    @Schema(description = "base64-encoded")
+    private String providedModel;
+
+    @Schema(description = "base64-encoded")
+    private String actualModel;
 }

@@ -9,7 +9,7 @@
     </parent>
     <groupId>eu.modapto</groupId>
     <artifactId>digital-twin-management</artifactId>
-    <version>1.0.0-RC01</version>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>MODAPTO Digital Twin Management</name>
     <description>Manages MODAPTO Modules and Smart Servicies</description>
@@ -17,40 +17,34 @@
         <docker-java.version>3.4.0</docker-java.version>
         <faaast.version>1.2.0</faaast.version>
         <fmi4j.version>0.38.0</fmi4j.version>
-        <jackson.databind.version>2.18.2</jackson.databind.version>
-        <jackson.version>2.18.2</jackson.version>
         <java.version>17</java.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <maven.plugin.spotless.version>2.43.0</maven.plugin.spotless.version>
+        <paho.version>1.2.5</paho.version>
         <plugin.lombock.version>1.18.34</plugin.lombock.version>
         <plugin.properties-maven.version>1.2.1</plugin.properties-maven.version>
         <smt-simulation.version>1.0.0-RC01</smt-simulation.version>
         <spring-boot-starter.version>3.3.5</spring-boot-starter.version>
         <springdoc-openapi-starter-webmvc-ui.version>2.6.0</springdoc-openapi-starter-webmvc-ui.version>
         <start-class>eu.modapto.digitaltwinmanagement.App</start-class>
-        <testcontainers.version>1.20.4</testcontainers.version>
         <wiremock-spring-boot.version>2.1.3</wiremock-spring-boot.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson.databind.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.docker-java</groupId>
@@ -100,8 +94,14 @@
         </dependency>
         <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
-            <artifactId>messagebus-internal</artifactId>
+            <artifactId>messagebus-mqtt</artifactId>
             <version>${faaast.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
@@ -150,6 +150,11 @@
             <version>${jaxb-api.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+            <version>${paho.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.glassfish.jaxb</groupId>
             <artifactId>jaxb-runtime</artifactId>
         </dependency>
@@ -191,9 +196,12 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -14,6 +14,8 @@
  */
 package eu.modapto.digitaltwinmanagement.mapper;
 
+import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
+import eu.modapto.digitaltwinmanagement.model.ArgumentType;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
 import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
 
@@ -26,12 +28,22 @@ public class SmartServiceMapper {
     public static SmartServiceResponseDto toDto(SmartService service) {
         return SmartServiceResponseDto.builder()
                 .id(service.getId())
-                .serviceId(service.getServiceId())
+                .serviceCatalogId(service.getServiceCatalogId())
                 .endpoint(service.getOperationEndpoint())
                 .name(service.getName())
                 .description(service.getDescription())
                 .inputArgumentTypes(service.getInputArgumentTypes())
                 .outputArgumentTypes(service.getOutputArgumentTypes())
+                .actualInputParameters(service.getInputParameters().stream()
+                        .filter(x -> service.getInputArgumentTypes()
+                                .getOrDefault(x.getIdShort(), ArgumentMapping.builder().type(ArgumentType.USER).build())
+                                .getType() == ArgumentType.USER)
+                        .toList())
+                .actualOutputParameters(service.getOutputParameters().stream()
+                        .filter(x -> service.getOutputArgumentTypes()
+                                .getOrDefault(x.getIdShort(), ArgumentMapping.builder().type(ArgumentType.USER).build())
+                                .getType() == ArgumentType.USER)
+                        .toList())
                 .build();
     }
 }

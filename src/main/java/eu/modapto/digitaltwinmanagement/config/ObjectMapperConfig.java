@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.JsonMapperFactory;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.SimpleAbstractTypeResolverFactory;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,8 @@ public class ObjectMapperConfig {
     @Bean
     @Primary
     public ObjectMapper objectMapper() {
-        return new JsonMapperFactory().create(new SimpleAbstractTypeResolverFactory().create());
+        return new JsonMapperFactory()
+                .create(new SimpleAbstractTypeResolverFactory().create())
+                .registerModule(new JavaTimeModule());
     }
 }

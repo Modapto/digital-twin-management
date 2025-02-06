@@ -35,6 +35,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.messagebus.DigitalTwinEventForwarder;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.digitaltwinmanagement.model.ExternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
@@ -89,24 +90,35 @@ public class DigitalTwinManager {
     private static final String HOSTNAME = "localhost";
 
     private final Map<Long, DigitalTwinConnector> instances = new HashMap<>();
-    private final DockerClient dockerClient;
+    private DockerClient dockerClient;
+    private boolean dockerAvailable;
 
     @Autowired
     private DigitalTwinConnectorFactory connectorFactory;
 
+    @Autowired
+    private DigitalTwinEventForwarder eventForwarder;
+
     public DigitalTwinManager(DigitalTwinDeploymentDockerConfig dockerConfig) throws URISyntaxException {
-        dockerClient = DockerClientBuilder
-                .getInstance(DefaultDockerClientConfig
-                        .createDefaultConfigBuilder()
-                        .withRegistryUrl(dockerConfig.getRegistryUrl())
-                        .withRegistryUsername(dockerConfig.getRegistryUsername())
-                        .withRegistryPassword(dockerConfig.getRegistryPassword())
-                        .build())
-                .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
-                        .dockerHost(new URI(dockerConfig.getHost()))
-                        .build())
-                .build();
-        dockerClient.pingCmd().exec();
+        try {
+            dockerClient = DockerClientBuilder
+                    .getInstance(DefaultDockerClientConfig
+                            .createDefaultConfigBuilder()
+                            .withRegistryUrl(dockerConfig.getRegistryUrl())
+                            .withRegistryUsername(dockerConfig.getRegistryUsername())
+                            .withRegistryPassword(dockerConfig.getRegistryPassword())
+                            .build())
+                    .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
+                            .dockerHost(new URI(dockerConfig.getHost()))
+                            .build())
+                    .build();
+            dockerClient.pingCmd().exec();
+            dockerAvailable = true;
+        }
+        catch (Exception e) {
+            dockerAvailable = false;
+            LOGGER.warn("Docker connection unsuccessful - Digital Twin Manager will not be able to handle Smart Services of type 'internal'", e);
+        }
     }
 
 
@@ -114,23 +126,25 @@ public class DigitalTwinManager {
         if (instances.containsKey(module.getId())) {
             throw new RuntimeException(String.format("DT for module already exists (module id: %s)", module.getId()));
         }
-        deploy(module, findFreePort());
+        deploy(module, findFreePort(), findFreePort());
     }
 
 
-    private void deploy(Module module, int port) throws Exception {
+    private void deploy(Module module, int port, int messageBusPort) throws Exception {
         createActualModel(module);
         DigitalTwinConnector dt = connectorFactory.create(
                 module.getType(),
                 DigitalTwinConfig.builder()
                         .environmentContext(module.getActualModel())
                         .port(port)
+                        .messageBusPort(messageBusPort)
                         .assetConnections(module.getAssetConnections())
                         .build());
         dt.start();
         instances.put(module.getId(), dt);
         updateEndpoints(module, port);
         waitUntilModuleIsRunning(module);
+        eventForwarder.subscribeToDigitalTwin(module, getMqttEndpoint(messageBusPort));
     }
 
 
@@ -144,6 +158,7 @@ public class DigitalTwinManager {
                 operation = EmbeddedSmartServiceHelper.addSmartService(actualModel, submodel, embedded);
             }
             else if (service instanceof InternalSmartService internal) {
+                ensureDockerRunning();
                 int port = startContainerForInternalService(internal);
                 internal.setHttpEndpoint(internal.getHttpEndpoint().replace("${container}", "localhost:" + port));
                 operation = addOperationNormal(service);
@@ -198,6 +213,7 @@ public class DigitalTwinManager {
                         break;
                 }
             }
+            service.setReference(ReferenceBuilder.forSubmodel(submodel, operation));
             service.setOperationEndpoint(String.format("/submodels/%s/submodel-elements/%s",
                     EncodingHelper.base64UrlEncode(submodel.getId()),
                     service.getName()));
@@ -255,6 +271,11 @@ public class DigitalTwinManager {
     }
 
 
+    private String getMqttEndpoint(int port) {
+        return String.format("tcp://%s:%d", HOSTNAME, port);
+    }
+
+
     private void updateEndpoints(Module module, int port) {
         module.setEndpoint(String.format("http://%s:%d/api/v3.0", HOSTNAME, port));
         for (var service: module.getServices()) {
@@ -292,6 +313,11 @@ public class DigitalTwinManager {
                 .build();
     }
 
+    private void ensureDockerRunning() {
+        if (!dockerAvailable) {
+            throw new UnsupportedOperationException("Smart Services of type 'internal' not supported as docker connection failed");
+        }
+    }
 
     private int startContainerForInternalService(InternalSmartService service) {
         int port = findFreePort();
@@ -315,7 +341,7 @@ public class DigitalTwinManager {
         }
         catch (MalformedURLException e) {
             throw new IllegalArgumentException(String.format(
-                    "creating asset connection failed because of malformed service URL (reason: %s)", e.getCause()));
+                    "creating asset connection failed because of malformed service URL (reason: %s)", e.getMessage()));
         }
     }
 
@@ -340,7 +366,7 @@ public class DigitalTwinManager {
         }
         catch (MalformedURLException e) {
             throw new IllegalArgumentException(String.format(
-                    "creating asset connection failed because of malformed service URL (reason: %s)", e.getCause()));
+                    "creating asset connection failed because of malformed service URL (reason: %s)", e.getMessage()));
         }
         return HttpAssetConnectionConfig.builder()
                 .baseUrl(baseUrl)
@@ -357,7 +383,6 @@ public class DigitalTwinManager {
 
 
     private Operation addOperationNormal(SmartService service) {
-        // also need to add asset connection!
         return new DefaultOperation.Builder()
                 .idShort(service.getName())
                 .inputVariables(service.getInputParameters().stream()
@@ -380,7 +405,7 @@ public class DigitalTwinManager {
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
-        deploy(module, dt.config.getPort());
+        deploy(module, dt.config.getPort(), dt.config.getMessageBusPort());
     }
 
 
@@ -388,6 +413,7 @@ public class DigitalTwinManager {
         if (!instances.containsKey(module.getId())) {
             throw new RuntimeException(String.format("DT for module does not exist (module id: %s)", module.getId()));
         }
+        eventForwarder.unsubscribeFromDigitalTwin(module);
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
         module.setActualModel(null);

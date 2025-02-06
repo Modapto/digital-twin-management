@@ -1,8 +1,8 @@
-openapi: 3.0.1
+openapi: 3.0.3
 info:
   title: Digital Twin Management API
   description: API documentation for Digital Twin Management
-  version: 1.0.0-SNAPSHOT
+  version: 0.5.0-SNAPSHOT
 servers:
 - url: http://localhost:8080
   description: Generated server url
@@ -17,7 +17,7 @@ paths:
       tags:
       - Module Operations
       summary: Get module by ID
-      description: Returns the details of an existing module by its ID
+      description: Returns an existing module by its ID
       operationId: getModule
       parameters:
       - name: moduleId
@@ -75,7 +75,42 @@ paths:
       responses:
         "204":
           description: Module deleted successfully
-  /{moduleId}/service:
+  /module:
+    get:
+      tags:
+      - Module Operations
+      summary: Get all modules
+      description: Returns a list of all modules
+      operationId: getAllModules
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModuleResponse"
+    post:
+      tags:
+      - Module Operations
+      summary: Create a new module
+      description: Creates a new module based on the provided details
+      operationId: createModule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleRequest"
+        required: true
+      responses:
+        "201":
+          description: Module created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleResponse"
+  /module/{moduleId}/service:
     get:
       tags:
       - Smart Service Operations
@@ -125,41 +160,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SmartServiceResponse"
-  /module:
-    get:
-      tags:
-      - Module Operations
-      summary: Get all modules
-      description: Returns a list of all modules
-      operationId: getAllModules
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ModuleResponse"
-    post:
-      tags:
-      - Module Operations
-      summary: Create a new module
-      description: Creates a new module based on the provided details
-      operationId: createModule
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ModuleRequest"
-        required: true
-      responses:
-        "201":
-          description: Module created successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ModuleResponse"
   /service:
     get:
       tags:
@@ -213,7 +213,28 @@ paths:
       responses:
         "204":
           description: Smart service deleted successfully
-  /{moduleId}/service/{serviceId}:
+  /module/{moduleId}/details:
+    get:
+      tags:
+      - Module Operations
+      summary: Get module details by ID
+      description: Returns the details of an existing module by its ID
+      operationId: getModuleDetails
+      parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleDetailsResponse"
+  /module/{moduleId}/service/{serviceId}:
     delete:
       tags:
       - Smart Service Operations
@@ -256,6 +277,12 @@ components:
     AssetOperationProviderConfig:
       type: object
       properties:
+        inputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
         inoutputValidationMode:
           type: string
           enum:
@@ -263,12 +290,6 @@ components:
           - REQUIRE_PRESENT
           - REQUIRE_PRESENT_OR_DEFAULT
         outputValidationMode:
-          type: string
-          enum:
-          - NONE
-          - REQUIRE_PRESENT
-          - REQUIRE_PRESENT_OR_DEFAULT
-        inputValidationMode:
           type: string
           enum:
           - NONE
@@ -285,6 +306,7 @@ components:
       properties:
         aas:
           type: string
+          description: base64-encoded
         format:
           type: string
           default: JSON
@@ -320,49 +342,17 @@ components:
             \ the reference AAS element, e.g. (Submodel)http://example.com/submodels/1,\
             \ (Property)my_referenced_property and for type == USER this property\
             \ is ignored."
-    ModuleResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        endpoint:
-          type: string
-        services:
-          type: array
-          items:
-            $ref: "#/components/schemas/SmartServiceResponse"
-    SmartServiceResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        serviceId:
-          type: string
-        endpoint:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        inputArgumentTypes:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/ArgumentMapping"
-        outputArgumentTypes:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/ArgumentMapping"
+      description: "Allows to specifiy how to handle certain output parameters, e.g.,\
+        \ to be returned to the user or write value to another property of the DT."
     DataSpecificationContent:
       type: object
     EmbeddedDataSpecification:
       type: object
       properties:
-        dataSpecification:
-          $ref: "#/components/schemas/Reference"
         dataSpecificationContent:
           $ref: "#/components/schemas/DataSpecificationContent"
+        dataSpecification:
+          $ref: "#/components/schemas/Reference"
     Extension:
       type: object
       properties:
@@ -370,6 +360,10 @@ components:
           type: string
         value:
           type: string
+        refersTo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
         valueType:
           type: string
           enum:
@@ -403,16 +397,12 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        refersTo:
+        supplementalSemanticIds:
           type: array
           items:
             $ref: "#/components/schemas/Reference"
         semanticId:
           $ref: "#/components/schemas/Reference"
-        supplementalSemanticIds:
-          type: array
-          items:
-            $ref: "#/components/schemas/Reference"
     Key:
       type: object
       properties:
@@ -459,6 +449,18 @@ components:
           type: string
         text:
           type: string
+    ModuleResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        endpoint:
+          type: string
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmartServiceResponse"
     Qualifier:
       type: object
       properties:
@@ -466,12 +468,8 @@ components:
           type: string
         type:
           type: string
-        kind:
-          type: string
-          enum:
-          - CONCEPT_QUALIFIER
-          - TEMPLATE_QUALIFIER
-          - VALUE_QUALIFIER
+        valueId:
+          $ref: "#/components/schemas/Reference"
         valueType:
           type: string
           enum:
@@ -505,14 +503,18 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        valueId:
-          $ref: "#/components/schemas/Reference"
-        semanticId:
-          $ref: "#/components/schemas/Reference"
+        kind:
+          type: string
+          enum:
+          - CONCEPT_QUALIFIER
+          - TEMPLATE_QUALIFIER
+          - VALUE_QUALIFIER
         supplementalSemanticIds:
           type: array
           items:
             $ref: "#/components/schemas/Reference"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
     Reference:
       type: object
       properties:
@@ -527,13 +529,86 @@ components:
             $ref: "#/components/schemas/Key"
         referredSemanticId:
           $ref: "#/components/schemas/Reference"
+    SmartServiceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceCatalogId:
+          type: string
+        endpoint:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        inputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+          description: "Allows to specifiy how to handle certain input parameters,\
+            \ e.g., have to be provided by the user upon invocation, use constant\
+            \ values, or fetch value from another property of the DT."
+        outputArgumentTypes:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ArgumentMapping"
+          description: "Allows to specifiy how to handle certain output parameters,\
+            \ e.g., to be returned to the user or write value to another property\
+            \ of the DT."
+        actualInputParameters:
+          type: array
+          description: Input parameters that have to be provided by the user upon
+            invocation.
+          items:
+            $ref: "#/components/schemas/SubmodelElement"
+        actualOutputParameters:
+          type: array
+          description: Output parameters that will be returned to the user after invocation.
+          items:
+            $ref: "#/components/schemas/SubmodelElement"
+    SubmodelElement:
+      type: object
+      properties:
+        embeddedDataSpecifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmbeddedDataSpecification"
+        displayName:
+          type: array
+          items:
+            $ref: "#/components/schemas/LangStringNameType"
+        description:
+          type: array
+          items:
+            $ref: "#/components/schemas/LangStringTextType"
+        idShort:
+          type: string
+        category:
+          type: string
+        extensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+        supplementalSemanticIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
+        qualifiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Qualifier"
+      description: Output parameters that will be returned to the user after invocation.
     SmartServiceRequest:
       required:
       - name
-      - serviceId
+      - serviceCatalogId
       type: object
       properties:
-        serviceId:
+        serviceCatalogId:
           maxLength: 1023
           minLength: 1
           type: string
@@ -566,36 +641,12 @@ components:
             $ref: "#/components/schemas/ArgumentMapping"
           description: Allows to change output arguments source from user to constant
             value or to be written to another AAS element
-    SubmodelElement:
+    ModuleDetailsResponse:
       type: object
       properties:
-        embeddedDataSpecifications:
-          type: array
-          items:
-            $ref: "#/components/schemas/EmbeddedDataSpecification"
-        displayName:
-          type: array
-          items:
-            $ref: "#/components/schemas/LangStringNameType"
-        description:
-          type: array
-          items:
-            $ref: "#/components/schemas/LangStringTextType"
-        idShort:
+        providedModel:
           type: string
-        category:
+          description: base64-encoded
+        actualModel:
           type: string
-        extensions:
-          type: array
-          items:
-            $ref: "#/components/schemas/Extension"
-        semanticId:
-          $ref: "#/components/schemas/Reference"
-        supplementalSemanticIds:
-          type: array
-          items:
-            $ref: "#/components/schemas/Reference"
-        qualifiers:
-          type: array
-          items:
-            $ref: "#/components/schemas/Qualifier"
+          description: base64-encoded

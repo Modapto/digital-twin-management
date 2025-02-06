@@ -12,22 +12,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.deployment;
+package eu.modapto.digitaltwinmanagement.model.event.payload;
 
-import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
-@Getter
-@Setter
+@Data
 @Builder
-public class DigitalTwinConfig {
-    private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
-    private List<AssetConnectionConfig> assetConnections;
+@NoArgsConstructor
+@AllArgsConstructor
+public class ModuleDetailsPayload {
+    @JsonProperty("id")
+    private long moduleId;
+    private String endpoint;
 }

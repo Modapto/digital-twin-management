@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import eu.modapto.digitaltwinmanagement.jpa.ListOfSubmodelElementConverter;
+import eu.modapto.digitaltwinmanagement.jpa.ReferenceConverter;
 import jakarta.persistence.Convert;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.ElementCollection;
@@ -38,6 +39,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.experimental.SuperBuilder;
+import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 
 
@@ -57,7 +59,7 @@ public abstract class SmartService {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String serviceId;
+    private String serviceCatalogId;
     private String name;
     private String operationEndpoint;
     private String description;
@@ -77,6 +79,10 @@ public abstract class SmartService {
     @ElementCollection
     @Builder.Default
     private Map<String, ArgumentMapping> outputArgumentTypes = new HashMap<>();
+
+    @JsonIgnore
+    @Convert(converter = ReferenceConverter.class)
+    private Reference reference;
 
     @ManyToOne
     @JoinColumn(name = "module_id")

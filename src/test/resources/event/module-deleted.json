@@ -1,0 +1,8 @@
+{
+    "module": "1",
+    "timestamp": "2025-01-30T14:12:00",
+    "priority": "LOW",
+    "sourceComponent": "DT Management",
+    "eventType": "Modapto Module deleted",
+    "topic": "modapto-module-deletion"
+}

@@ -14,26 +14,29 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.info.Info;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 
 
 @Configuration
-public class OpenApiConfig {
+public class KafkaProducerConfig {
 
-    @Value("${build.version}")
-    private String appVersion;
+    @Value("${modapto.messagebus.url:localhost:9092}")
+    private String messageBusUrl;
 
     @Bean
-    public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("Digital Twin Management API")
-                        .version(appVersion)
-                        .description("API documentation for Digital Twin Management"))
-                .openapi("3.0.3");
+    public KafkaTemplate<String, String> kafkaTemplate() {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, messageBusUrl);
+        properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(properties));
     }
 }

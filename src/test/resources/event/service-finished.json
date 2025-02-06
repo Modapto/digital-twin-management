@@ -1,0 +1,24 @@
+{
+    "module": "1",
+    "timestamp": "2025-01-30T14:12:00",
+    "priority": "LOW",
+    "sourceComponent": "DT",
+    "eventType": "Smart Service finished",
+    "smartService": "2",
+    "topic": "smart-service-finish",
+    "results": {
+        "id": 2,
+        "serviceCatalogId": "my-service-catalog-id",
+        "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
+        "name": "ExampleService",
+        "success": true,
+        "outputArguments": {
+            "collection1":
+                    {
+                        "stringValue": "foo",
+                        "doubleValue": 11.22
+                    },
+            "intValue": 42
+        }
+    }
+}

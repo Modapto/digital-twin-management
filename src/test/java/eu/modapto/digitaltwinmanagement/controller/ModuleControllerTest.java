@@ -19,9 +19,16 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -33,10 +40,17 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
 import eu.modapto.digitaltwinmanagement.model.ArgumentType;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.model.event.AbstractEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
@@ -47,9 +61,17 @@ import eu.modapto.digitaltwinmanagement.service.SmartServiceService;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.ServerSocket;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.core.SerializationException;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.JsonSerializer;
 import org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd;
@@ -64,7 +86,11 @@ import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollect
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatcher;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.slf4j.Logger;
@@ -72,14 +98,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -128,6 +157,10 @@ public class ModuleControllerTest {
     private static final String INTERNAL_SMART_SERVICE_ID = "internal-1";
     private static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
 
+    // RegEx
+    private static final String REGEX_LOCATION_HEADER_MODULE = "^/module/(\\d+)$";
+    private static final String REGEX_LOCATION_HEADER_SERVICE = "^/service/(\\d+)$";
+
     // Default AAS model
     private static final String AAS_ID = "http://example.org/aas/1";
     private static final String SUBMODEL_ID = "http://example.org/submodel/1";
@@ -137,6 +170,13 @@ public class ModuleControllerTest {
     private static final String PROPERTY_DOUBLE_ID_SHORT = "propertyDouble";
 
     private static final String INTERNAL_SERVICE_IMAGE_NAME = "internal-service-mock";
+    private static final long KAFKA_TIMEOUT_IN_MS = 10000;
+
+    @MockBean
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    @InjectMocks
+    private KafkaBridge kafkaBridge;
 
     @Autowired
     private MockMvc mockMvc;
@@ -172,6 +212,12 @@ public class ModuleControllerTest {
         EXTERNAL_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, EXTERNAL_FILENAME);
         initServiceCatalogueMock();
         initLocalDockerRegistry();
+    }
+
+
+    @BeforeEach
+    private void resetMocks() {
+        MockitoAnnotations.openMocks(this);
     }
 
 
@@ -223,29 +269,74 @@ public class ModuleControllerTest {
                 .type(DT_CONNECTOR_TYPE)
                 .format(DataFormat.JSON)
                 .build();
-        mockMvc.perform(post("/module")
+        MvcResult result = mockMvc.perform(post("/module")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload)))
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("^/module/\\d+$")))
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        long moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        assertKafkaEvent(moduleCreatedEvent(moduleId));
+    }
+
+
+    @Test
+    public void testUpdateModule() throws Exception {
+        Environment environment = newDefaultEnvironment();
+        MvcResult result = mockMvc.perform(post("/module")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(
+                        ModuleRequestDto.builder()
+                                .aas(asJsonBase64(environment))
+                                .type(DT_CONNECTOR_TYPE)
+                                .format(DataFormat.JSON)
+                                .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        long moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        assertKafkaEvent(moduleCreatedEvent(moduleId));
+        environment.getSubmodels().get(0).getSubmodelElements().add(
+                new DefaultProperty.Builder()
+                        .idShort("newProperty")
+                        .value("new")
+                        .valueType(DataTypeDefXsd.STRING)
+                        .build());
+        result = mockMvc.perform(put("/module/" + moduleId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(ModuleRequestDto.builder()
+                        .aas(asJsonBase64(environment))
+                        .type(DT_CONNECTOR_TYPE)
+                        .format(DataFormat.JSON)
+                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        assertTrue(moduleService.getModuleById(moduleId).getActualModel().getEnvironment().getSubmodels().get(0).getSubmodelElements().stream()
+                .anyMatch(x -> Objects.equals("newProperty", x.getIdShort())));
+        assertKafkaEvent(moduleUpdatedEvent(moduleId));
     }
 
 
     @Test
     public void testCreateEmbeddedService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
+        assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format("/module/%d/service", module.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
-                                        .serviceId(EMBEDDED_SMART_SERVICE_ID)
+                                        .serviceCatalogId(EMBEDDED_SMART_SERVICE_ID)
                                         .build())))
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("^/service/\\d+$")))
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
@@ -266,16 +357,17 @@ public class ModuleControllerTest {
     @Test
     public void testCreateInternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
+        assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format("/module/%d/service", module.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
-                                        .serviceId(INTERNAL_SMART_SERVICE_ID)
+                                        .serviceCatalogId(INTERNAL_SMART_SERVICE_ID)
                                         .build())))
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("^/service/\\d+$")))
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
@@ -305,12 +397,13 @@ public class ModuleControllerTest {
                         .build())
                 .type(DT_CONNECTOR_TYPE)
                 .build());
+        assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format("/module/%d/service", module.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
-                                        .serviceId(INTERNAL_SMART_SERVICE_ID)
+                                        .serviceCatalogId(INTERNAL_SMART_SERVICE_ID)
                                         .inputArgumentTypes(Map.of(
                                                 "data", ArgumentMapping.builder()
                                                         .type(ArgumentType.REFERENCE)
@@ -323,7 +416,7 @@ public class ModuleControllerTest {
                                         .build())))
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("^/service/\\d+$")))
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
@@ -334,16 +427,17 @@ public class ModuleControllerTest {
     @Test
     public void testCreateExternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
+        assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format("/module/%d/service", module.getId()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
-                                        .serviceId(EXTERNAL_SMART_SERVICE_ID)
+                                        .serviceCatalogId(EXTERNAL_SMART_SERVICE_ID)
                                         .build())))
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("^/service/\\d+$")))
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
@@ -364,7 +458,7 @@ public class ModuleControllerTest {
         SmartService service = smartServiceService.addServiceToModule(
                 module.getId(),
                 SmartServiceRequestDto.builder()
-                        .serviceId(serviceId)
+                        .serviceCatalogId(serviceId)
                         .build());
         mockMvc.perform(delete(String.format("/service/%d", service.getId())))
                 .andExpect(status().isNoContent());
@@ -386,12 +480,15 @@ public class ModuleControllerTest {
         SmartService service = smartServiceService.addServiceToModule(
                 module.getId(),
                 SmartServiceRequestDto.builder()
-                        .serviceId(serviceId)
+                        .serviceCatalogId(serviceId)
                         .build());
         mockMvc.perform(delete(String.format("/module/%d", module.getId())))
                 .andExpect(status().isNoContent());
         assertThat(moduleRepository.count()).isZero();
         assertThat(smartServiceRepository.findAll()).extracting(SmartService::getModule).extracting(Module::getId).doesNotContain(service.getId());
+        assertKafkaEvent(
+                moduleCreatedEvent(module.getId()),
+                moduleDeletedEvent(module.getId()));
     }
 
 
@@ -444,14 +541,16 @@ public class ModuleControllerTest {
     }
 
 
-    private void assertInvokeServiceResponse(SmartServiceResponseDto service, String payload, String expectedResult) throws JSONException {
+    private void assertInvokeServiceResponse(SmartServiceResponseDto service, String payload, String expectedResult) throws JSONException, JsonProcessingException {
         LOGGER.info("invoking smart service...");
         LOGGER.info("name: {}", service.getName());
         LOGGER.info("url: {}/invoke/$value", service.getEndpoint());
         LOGGER.info("payload: {}", payload);
+        String invocationId = "foo-bar";
         ResponseEntity<String> serviceResponse = RestClient.create(service.getEndpoint())
                 .post()
                 .uri("/invoke/$value")
+                .header(Constants.HTTP_HEADER_MODAPTO_INVOCATION_ID, invocationId)
                 .body(payload)
                 .retrieve()
                 .toEntity(String.class);
@@ -461,5 +560,130 @@ public class ModuleControllerTest {
         LOGGER.info("payload: {}", serviceResponse.getBody());
         assertThat(serviceResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         JSONAssert.assertEquals(expectedResult, serviceResponse.getBody(), JSONCompareMode.STRICT);
+        assertKafkaEvent(
+                serviceInvokedEvent(service, invocationId),
+                serviceFinishedEvent(service, invocationId));
+    }
+
+
+    private <T extends AbstractEvent> void assertKafkaEvent(EventInfo... events) throws JsonProcessingException {
+        assertKafkaEvents(Arrays.asList(events));
+    }
+
+
+    private <T extends AbstractEvent> void assertKafkaEvents(List<EventInfo> events) throws JsonProcessingException {
+        for (var event: events) {
+            verify(kafkaTemplate, timeout(KAFKA_TIMEOUT_IN_MS)).send(anyString(), argThat(new ArgumentMatcher<String>() {
+                @Override
+                public boolean matches(String value) {
+                    try {
+                        if (event.check.test(mapper.readValue(value, event.type))) {
+                            return true;
+                        }
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    return false;
+                }
+            }));
+        }
+    }
+
+
+    private EventInfo<ModuleCreatedEvent> moduleCreatedEvent(long moduleId) {
+        return new EventInfo<>(ModuleCreatedEvent.class,
+                x -> checkCommonEventProperties(ModuleCreatedEvent.class, x)
+                        && Objects.equals(Long.toString(moduleId), x.getModuleId())
+                        && Objects.equals(moduleId, x.getPayload().getModuleId()));
+    }
+
+
+    private EventInfo<ModuleDeletedEvent> moduleDeletedEvent(long moduleId) {
+        return new EventInfo<>(ModuleDeletedEvent.class,
+                x -> checkCommonEventProperties(ModuleDeletedEvent.class, x)
+                        && Objects.equals(Long.toString(moduleId), x.getModuleId()));
+    }
+
+
+    private EventInfo<ModuleUpdatedEvent> moduleUpdatedEvent(long moduleId) {
+        return new EventInfo<>(ModuleUpdatedEvent.class,
+                x -> checkCommonEventProperties(ModuleUpdatedEvent.class, x)
+                        && Objects.equals(Long.toString(moduleId), x.getModuleId())
+                        && Objects.equals(moduleId, x.getPayload().getModuleId()));
+    }
+
+
+    private EventInfo<SmartServiceInvokedEvent> serviceInvokedEvent(SmartServiceResponseDto service, String invocationId) {
+        return new EventInfo<>(SmartServiceInvokedEvent.class,
+                x -> checkCommonEventProperties(SmartServiceInvokedEvent.class, x)
+                        && Objects.equals(service.getId(), x.getPayload().getServiceId())
+                        && Objects.equals(service.getServiceCatalogId(), x.getPayload().getServiceCatalogId())
+                        && Objects.equals(invocationId, x.getPayload().getInvocationId())
+                        && Objects.equals(service.getName(), x.getPayload().getName())
+                        && Objects.equals(service.getEndpoint(), x.getPayload().getEndpoint()));
+    }
+
+
+    private EventInfo<SmartServiceFinishedEvent> serviceFinishedEvent(SmartServiceResponseDto service, String invocationId) {
+        return new EventInfo<>(SmartServiceFinishedEvent.class,
+                x -> checkCommonEventProperties(SmartServiceFinishedEvent.class, x)
+                        && Objects.equals(service.getId(), x.getPayload().getServiceId())
+                        && Objects.equals(service.getServiceCatalogId(), x.getPayload().getServiceCatalogId())
+                        && Objects.equals(invocationId, x.getPayload().getInvocationId())
+                        && Objects.equals(service.getName(), x.getPayload().getName())
+                        && Objects.equals(service.getEndpoint(), x.getPayload().getEndpoint()));
+    }
+
+
+    private <T extends AbstractEvent> boolean checkCommonEventProperties(Class<T> type, T event) {
+        try {
+            Constructor<T> constructor = type.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            AbstractEvent eventType = constructor.newInstance();
+            return Objects.equals(eventType.getEventType(), event.getEventType())
+                    && Objects.equals(eventType.getPriority(), event.getPriority())
+                    && Objects.equals(eventType.getSourceComponent(), event.getSourceComponent())
+                    && Objects.equals(eventType.getTopic(), event.getTopic());
+
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException("error checking common event properties for type " + type.getSimpleName(), e);
+        }
+    }
+
+
+    private Optional<Integer> findEventMessage(List<String> messages, EventInfo event) {
+        for (int i = 0; i < messages.size(); i++) {
+            try {
+                if (event.check.test(mapper.readValue(messages.get(i), event.type))) {
+                    return Optional.of(i);
+                }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+                // ignore
+            }
+        }
+        return Optional.empty();
+    }
+
+
+    private long extractIdFromLocationHeader(MvcResult result, String regex) {
+        Matcher matcher = Pattern.compile(regex).matcher(result.getResponse().getHeader(HttpHeaders.LOCATION));
+        if (!matcher.matches()) {
+            fail(String.format("invalid response header (name: %s, value: %s)", HttpHeaders.LOCATION, result.getResponse().getHeader(HttpHeaders.LOCATION)));
+        }
+        return Long.parseLong(matcher.group(1));
+    }
+
+    private class EventInfo<T extends AbstractEvent> {
+        Class<T> type;
+        Predicate<T> check;
+
+        EventInfo(Class<T> type, Predicate<T> check) {
+            this.type = type;
+            this.check = check;
+        }
     }
 }

@@ -1,0 +1,26 @@
+
+{
+    "priority": "LOW",
+    "sourceComponent": "DT",
+    "eventType": "Smart Service invoked",
+    "topic": "smart-service-invoke",
+    "timestamp": "2025-01-30T14:12:00",
+    "smartService": "2",
+    "module": "1",
+    "results":
+            {
+                "id": 2,
+                "serviceCatalogId": "my-service-catalog-id",
+                "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
+                "name": "ExampleService",
+                "inputArguments":
+                        {
+                            "collection1":
+                                    {
+                                        "stringValue": "foo",
+                                        "doubleValue": 11.22
+                                    },
+                            "intValue": 42
+                        }
+            }
+}

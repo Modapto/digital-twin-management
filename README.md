@@ -1,13 +1,29 @@
 # Module & Digital Twin Management component of MODAPTO System
 
-This is the Module & Digital Twin Management component of MODAPTO System.
+This is the Module & Digital Twin Management (MDT) component of MODAPTO System.
 
 ## Requirements
 - Java 17
 - Maven (only for build)
 - Docker
 
-### DT Deployment Types
+## Running with docker
+Module & Digital Twin Management manages Modules and Smart Service (with the three types of embedded, internal, and external) which are created at runtime. 
+Some of these can be run within the same JVM or as docker containers, some (internal Smart Services) can only be run a docker containers.
+So for complete functionality of the MDT it needs to be able to have access to a docker daemon to execute container dynamically.
+If you are running MDT in docker itself there are two options: use a docker-in-docker setup or docker socket binding (i.e. bind the host docker socket to to container).
+Both have their own pros and cons.
+For that reason, two docker images are published.
+The `regular` one is using docker socket binding, which means you manually have to bind the docker socket e.g. by running something like this
+```
+docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(which docker):/usr/bin/docker -it digital-twin-management:latest
+```
+Alternatively, in image using docker-in-docker (dind) is published with the tag starting with `dind-`, e.g. `digital-twin-management:dind-latest`.
+
+If docker is not correctly configured, the DTM should run nonetheless but fail when rying to use features that require docker (e.g. creating modules with type `docker` or smart services with type `internal`).
+
+
+## DT Deployment Types
 You need to support at least one of the following DT deployment types: `internal`, `docker`
 
 **Internal** means that FA³ST Service will be started as embedded service, i.e., in the same JVM as the Module & Digital Twin Management component. For this to work, you need need locally install the latest version of the MODAPTO Digital Twin component via the following steps
@@ -21,12 +37,11 @@ You need to support at least one of the following DT deployment types: `internal
 dt.deployment.docker.host=tcp://localhost:2375 // set to match your docker daemon
 ```
 
-### API
-The API of the component is described in the OpenAPI format at https://github.com/Modapto/digital-twin-management/blob/main/api-interface-1.0.0-RC01.yaml
-
+## API
+The API can be found at `/API Interface`.
 When running, you can also access the API documentation at http://localhost:8080/swagger-ui.html
 
-### Configuration
+## Configuration
 Configuration happens via Spring framework. The typical way to configure the software is by providing an `application.properties` file.
 
 The following configuration parameters can be used (set to default values in the example)
