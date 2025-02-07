@@ -29,8 +29,8 @@ public class DigitalTwinConnectorFactory {
     @Autowired
     private DigitalTwinDeploymentDockerConfig dockerConfig;
 
-    @Value("${dt.deployment.type.default:INTERNAL}")
-    private DigitalTwinConnectorType defaultDeplyomentType = DigitalTwinConnectorType.INTERNAL;
+    @Value("${dt.deployment.type.default:DOCKER}")
+    private DigitalTwinConnectorType defaultDeplyomentType = DigitalTwinConnectorType.DOCKER;
 
     public DigitalTwinConnector create(DigitalTwinConnectorType type, DigitalTwinConfig config) throws Exception {
         switch (Optional.ofNullable(type).orElse(defaultDeplyomentType)) {

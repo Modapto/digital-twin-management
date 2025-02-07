@@ -39,6 +39,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
+import eu.modapto.digitaltwinmanagement.controller.util.Constants;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
@@ -152,7 +153,7 @@ public class ModuleControllerTest {
     private static String EXTERNAL_EXPECTED_RESULT;
     private static String EXTERNAL_CATALOG_RESPONSE;
 
-    private static final DigitalTwinConnectorType DT_CONNECTOR_TYPE = DigitalTwinConnectorType.INTERNAL;
+    private static final DigitalTwinConnectorType DT_CONNECTOR_TYPE = DigitalTwinConnectorType.DOCKER;
     private static final String EMBEDDED_SMART_SERVICE_ID = "embedded-1";
     private static final String INTERNAL_SMART_SERVICE_ID = "internal-1";
     private static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
@@ -686,4 +687,5 @@ public class ModuleControllerTest {
             this.check = check;
         }
     }
+
 }

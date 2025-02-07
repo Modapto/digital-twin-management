@@ -8,7 +8,7 @@ This is the Module & Digital Twin Management (MDT) component of MODAPTO System.
 - Docker
 
 ## Running with docker
-Module & Digital Twin Management manages Modules and Smart Service (with the three types of embedded, internal, and external) which are created at runtime. 
+Module & Digital Twin Management manages Modules and Smart Service (with the three types of embedded, internal, and external) which are created at runtime.
 Some of these can be run within the same JVM or as docker containers, some (internal Smart Services) can only be run a docker containers.
 So for complete functionality of the MDT it needs to be able to have access to a docker daemon to execute container dynamically.
 If you are running MDT in docker itself there are two options: use a docker-in-docker setup or docker socket binding (i.e. bind the host docker socket to to container).
@@ -51,7 +51,7 @@ The following configuration parameters can be used (set to default values in the
 modapto.service-catalogue.url=http://localhost:8080
 
 // DT deployment
-dt.deployment.type.default=INTERNAL
+dt.deployment.type.default=DOCKER
 dt.deployment.docker.host=tcp://localhost:2375
 dt.deployment.docker.registryUrl=ghcr.io
 dt.deployment.docker.registryUsername=

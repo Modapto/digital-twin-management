@@ -97,6 +97,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         }
         if (dockerAvailable) {
             DockerHelper.stopContainer(dockerClient, containerId);
+            DockerHelper.removeContainer(dockerClient, containerId);
         }
         running = false;
     }
@@ -124,8 +125,11 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .build())
                 .persistence(PersistenceInMemoryConfig.builder().build())
                 .messageBus(MessageBusMqttConfig.builder()
+                        .host("0.0.0.0")
                         .internal(true)
                         .port(MESSAGEBUS_PORT_INTERNAL)
+                        .clientCertificate(null)
+                        .serverCertificate(null)
                         .build())
                 .fileStorage(FileStorageInMemoryConfig.builder().build())
                 .assetConnections(config.getAssetConnections())

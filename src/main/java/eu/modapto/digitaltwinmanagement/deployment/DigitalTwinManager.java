@@ -86,7 +86,7 @@ public class DigitalTwinManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinManager.class);
     private static final String MODAPTO_SUBMODEL_ID = "ModaptoSmartServices";
     private static final long TIMEOUT_REST_AVAILABLE_IN_MS = 60000;
-    private static final long INTERVAL_CHECK_REST_AVAILABLE_IN_MS = 100;
+    private static final long INTERVAL_CHECK_REST_AVAILABLE_IN_MS = 500;
     private static final String HOSTNAME = "localhost";
 
     private final Map<Long, DigitalTwinConnector> instances = new HashMap<>();
@@ -313,11 +313,13 @@ public class DigitalTwinManager {
                 .build();
     }
 
+
     private void ensureDockerRunning() {
         if (!dockerAvailable) {
             throw new UnsupportedOperationException("Smart Services of type 'internal' not supported as docker connection failed");
         }
     }
+
 
     private int startContainerForInternalService(InternalSmartService service) {
         int port = findFreePort();

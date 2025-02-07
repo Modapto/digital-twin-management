@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 
 public class DockerHelper {
@@ -95,6 +96,9 @@ public class DockerHelper {
 
 
     private static Optional<String> findContainerByName(DockerClient client, String containerName) {
+        if (Objects.isNull(containerName)) {
+            return Optional.empty();
+        }
         return client.listContainersCmd()
                 .withShowAll(true)
                 .withNameFilter(List.of(containerName))
@@ -211,7 +215,7 @@ public class DockerHelper {
                         .withPortBindings(portMappings.entrySet().stream()
                                 .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
                                 .toList()))
-                .withName(containerName)
+                .withName(Optional.ofNullable(containerName).orElse(UUID.randomUUID().toString()))
                 .withEnv(environment.entrySet().stream()
                         .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
                         .toList())
@@ -232,6 +236,9 @@ public class DockerHelper {
 
 
     public static boolean stopContainerIfRunningByName(DockerClient client, String containerName) {
+        if (Objects.isNull(containerName)) {
+            return false;
+        }
         Optional<String> containerId = findContainerByName(client, containerName);
         if (containerId.isPresent()) {
             return stopContainerIfRunning(client, containerId.get());

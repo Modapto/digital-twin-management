@@ -39,7 +39,7 @@ public class ModuleRequestDto {
     @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "JSON")
     private DataFormat format = DataFormat.JSON;
 
-    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "INTERNAL")
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "DOCKER")
     private DigitalTwinConnectorType type;
 
     @Builder.Default
