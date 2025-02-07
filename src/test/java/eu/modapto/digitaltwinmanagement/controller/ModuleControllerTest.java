@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.model.Container;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
@@ -38,6 +39,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
 import eu.modapto.digitaltwinmanagement.controller.util.Constants;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
@@ -86,6 +88,7 @@ import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollection;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -172,6 +175,7 @@ public class ModuleControllerTest {
 
     private static final String INTERNAL_SERVICE_IMAGE_NAME = "internal-service-mock";
     private static final long KAFKA_TIMEOUT_IN_MS = 10000;
+    private static DockerClient dockerClient;
 
     @MockBean
     private KafkaTemplate<String, String> kafkaTemplate;
@@ -197,6 +201,9 @@ public class ModuleControllerTest {
     @Autowired
     private ObjectMapper mapper;
 
+    @Autowired
+    private DigitalTwinDeploymentDockerConfig dtDeploymentDockerConfig;
+
     @BeforeAll
     private static void init() throws IOException, Exception {
         EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EMBEDDED_BOUNCING_BALL_FILENAME);
@@ -211,6 +218,7 @@ public class ModuleControllerTest {
         EXTERNAL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EXTERNAL_FILENAME);
         EXTERNAL_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EXTERNAL_FILENAME);
         EXTERNAL_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, EXTERNAL_FILENAME);
+        dockerClient = DockerHelper.newClient();
         initServiceCatalogueMock();
         initLocalDockerRegistry();
     }
@@ -258,8 +266,22 @@ public class ModuleControllerTest {
 
     @AfterAll
     public static void teardown() throws Exception {
+        dockerClient.close();
         SERVICE_CATALOG_MOCK.stop();
         localDockerRegistry.stop();
+    }
+
+
+    @AfterEach
+    public void cleanUpDockerContainers() {
+        List<Container> containers = dockerClient.listContainersCmd().withShowAll(true).exec();
+        for (Container container: containers) {
+            if (Objects.equals(dtDeploymentDockerConfig.getImage(), container.getImage())) {
+                dockerClient.stopContainerCmd(container.getId()).exec();
+                dockerClient.removeContainerCmd(container.getId()).exec();
+                LOGGER.info("cleaned up container {}", container.getId());
+            }
+        }
     }
 
 

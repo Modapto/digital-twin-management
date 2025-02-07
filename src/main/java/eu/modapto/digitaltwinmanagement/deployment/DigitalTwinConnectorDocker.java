@@ -29,6 +29,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
+import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -133,6 +134,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .build())
                 .fileStorage(FileStorageInMemoryConfig.builder().build())
                 .assetConnections(config.getAssetConnections())
+                .submodelTemplateProcessor(SimulationSubmodelTemplateProcessorConfig.builder().build())
                 .build();
         new ObjectMapper()
                 .enable(SerializationFeature.INDENT_OUTPUT)
