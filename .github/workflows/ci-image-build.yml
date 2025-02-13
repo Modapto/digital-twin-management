@@ -1,4 +1,4 @@
-name: Docker Image CI - Digital Twin
+name: Docker Image CI / CD - Digital Twin Management
 
 env:
   DOCKER_IMAGE: digital-twin-management
@@ -80,3 +80,30 @@ jobs:
         docker push ghcr.io/modapto/${{ env.DOCKER_IMAGE }}:latest
         docker push ghcr.io/modapto/${{ env.DOCKER_IMAGE }}:dind-${{ env.VERSION }}
         docker push ghcr.io/modapto/${{ env.DOCKER_IMAGE }}:dind-latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push-image
+    steps:      
+      - name: SSH into VM and Deploy new Image with Docker
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST_IP }}
+          username:  ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            # Fail script on first error
+            set -e 
+            # Login to GitHub Container Registry
+            echo "${{ secrets.CI_ORG_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Deploy new Image
+            cd /root/modapto/system-deployment
+            docker compose pull ${{ env.DOCKER_IMAGE }}
+            docker compose up -d --no-deps ${{ env.DOCKER_IMAGE }}
+
+            # Remove unused images
+            docker image prune -f
+            
+            # Logout
+            docker logout ghcr.io
