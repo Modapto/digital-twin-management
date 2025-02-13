@@ -16,6 +16,8 @@ package eu.modapto.digitaltwinmanagement.config;
 
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,10 +28,18 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 
 @Configuration
-public class KafkaProducerConfig {
+@Getter
+@Setter
+public class KafkaConfig {
 
-    @Value("${modapto.messagebus.url:localhost:9092}")
+    @Value("${modapto.messagebus.url}")
     private String messageBusUrl;
+
+    @Value("${dt-management.kafka.queue.size:100}")
+    private int queueSize;
+
+    @Value("${dt-management.kafka.thread.count:1}")
+    private int threadCount;
 
     @Bean
     public KafkaTemplate<String, String> kafkaTemplate() {

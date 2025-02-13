@@ -14,7 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.deployment;
 
-import static eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType.DOCKER;
+import static eu.modapto.digitaltwinmanagement.deployment.DeploymentType.DOCKER;
 
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import java.util.Optional;
@@ -30,16 +30,17 @@ public class DigitalTwinConnectorFactory {
     private DigitalTwinDeploymentDockerConfig dockerConfig;
 
     @Value("${dt.deployment.type.default:DOCKER}")
-    private DigitalTwinConnectorType defaultDeplyomentType = DigitalTwinConnectorType.DOCKER;
+    private final DeploymentType defaultDeplyomentType = DeploymentType.DOCKER;
 
-    public DigitalTwinConnector create(DigitalTwinConnectorType type, DigitalTwinConfig config) throws Exception {
+    public DigitalTwinConnector create(DeploymentType type, DigitalTwinConfig config) throws Exception {
         switch (Optional.ofNullable(type).orElse(defaultDeplyomentType)) {
-            case DOCKER:
+            case DOCKER -> {
                 return new DigitalTwinConnectorDocker(config, dockerConfig);
-            case INTERNAL:
+            }
+            case INTERNAL -> {
                 return new DigitalTwinConnectorInternal(config);
-            default:
-                throw new IllegalArgumentException(String.format("Unsupported DT connector type '%s'", type));
+            }
+            default -> throw new IllegalArgumentException(String.format("Unsupported DT connector type '%s'", type));
         }
     }
 }

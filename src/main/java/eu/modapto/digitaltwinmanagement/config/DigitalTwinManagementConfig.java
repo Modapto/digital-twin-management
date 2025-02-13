@@ -14,14 +14,39 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 
 @Component
-@ConfigurationProperties(prefix = "dt-management.service.internal.deployment.docker")
+@ConfigurationProperties(prefix = "dt-management")
 @Getter
 @Setter
-public class InternalServiceDeploymentDockerConfig extends DockerConfig {}
+public class DigitalTwinManagementConfig {
+    public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
+
+    private String hostname;
+
+    private int externalPort;
+
+    @Value("${dt-management.deployment.type}")
+    private DeploymentType deploymentType;
+    @Value("${dt-management.events.mqtt.port}")
+    private int mqttPort;
+    @Value("${modapto.service-catalogue.url}")
+    private String serviceCatalogueUrl;
+
+    @Value("${dt-management.events.mqtt.queue.size:100}")
+    private int mqttQueueSize;
+
+    @Value("${dt-management.events.mqtt.thread.count:1}")
+    private int mqttThreadCount;
+
+    public String getInternalHostname() {
+        return deploymentType == DeploymentType.DOCKER ? HOST_DOCKER_INTERNAL : hostname;
+    }
+}

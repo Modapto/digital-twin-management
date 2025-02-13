@@ -14,12 +14,43 @@
  */
 package eu.modapto.digitaltwinmanagement.deployment;
 
+import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
+import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
+
+
 public abstract class DigitalTwinConnector {
 
     protected DigitalTwinConfig config;
 
     protected DigitalTwinConnector(DigitalTwinConfig config) throws Exception {
         this.config = config;
+    }
+
+
+    protected HttpEndpointConfig getHttpEndpointConfig(int port) {
+        return HttpEndpointConfig.builder()
+                .cors(true)
+                .port(port)
+                .sni(false)
+                .ssl(false)
+                .includeErrorDetails(true)
+                .build();
+    }
+
+
+    protected MessageBusMqttConfig getMessageBusMqttConfig() {
+        return MessageBusMqttConfig.builder()
+                .host(config.getMessageBusMqttHost())
+                .internal(false)
+                .port(config.getMessageBusMqttPort())
+                .topicPrefix(String.format("module/%d/", config.getModule().getId()))
+                .build();
+    }
+
+
+    protected SimulationSubmodelTemplateProcessorConfig getSimulationSubmodelTemplateProcessorConfig() {
+        return SimulationSubmodelTemplateProcessorConfig.builder().build();
     }
 
 

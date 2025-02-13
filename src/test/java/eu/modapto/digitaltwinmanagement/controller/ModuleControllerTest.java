@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.Container;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -40,12 +41,15 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
+import eu.modapto.digitaltwinmanagement.config.TestConfig;
 import eu.modapto.digitaltwinmanagement.controller.util.Constants;
-import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
 import eu.modapto.digitaltwinmanagement.model.ArgumentType;
+import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
 import eu.modapto.digitaltwinmanagement.model.event.AbstractEvent;
@@ -89,7 +93,6 @@ import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollect
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
@@ -100,6 +103,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -117,6 +121,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 
@@ -130,7 +135,6 @@ public class ModuleControllerTest {
     private static final WireMockServer SERVICE_CATALOG_MOCK = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
     private static GenericContainer<?> localDockerRegistry;
     private static String localDockerRegistryUrl;
-    private static String internalServiceDockerImage;
 
     // Resource paths & files
     private static final String EMBEDDED_BOUNCING_BALL_FILENAME = "embedded-bouncing-ball.json";
@@ -156,7 +160,6 @@ public class ModuleControllerTest {
     private static String EXTERNAL_EXPECTED_RESULT;
     private static String EXTERNAL_CATALOG_RESPONSE;
 
-    private static final DigitalTwinConnectorType DT_CONNECTOR_TYPE = DigitalTwinConnectorType.DOCKER;
     private static final String EMBEDDED_SMART_SERVICE_ID = "embedded-1";
     private static final String INTERNAL_SMART_SERVICE_ID = "internal-1";
     private static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
@@ -177,6 +180,13 @@ public class ModuleControllerTest {
     private static final long KAFKA_TIMEOUT_IN_MS = 10000;
     private static DockerClient dockerClient;
 
+    private static TestConfig testConfig;
+
+    @Autowired
+    public void setTestConfig(TestConfig testConfig) {
+        ModuleControllerTest.testConfig = testConfig;
+    }
+
     @MockBean
     private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -185,6 +195,9 @@ public class ModuleControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private DigitalTwinManagementConfig config;
 
     @Autowired
     private ModuleService moduleService;
@@ -204,8 +217,16 @@ public class ModuleControllerTest {
     @Autowired
     private DigitalTwinDeploymentDockerConfig dtDeploymentDockerConfig;
 
-    @BeforeAll
-    private static void init() throws IOException, Exception {
+    @Value("${dt.deployment.type.default:DOCKER}")
+    private DeploymentType dtDeplyomentType;
+
+    private static boolean initialized = false;
+
+    @BeforeEach
+    private void init() throws IOException, Exception {
+        if (initialized) {
+            return;
+        }
         EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EMBEDDED_BOUNCING_BALL_FILENAME);
         EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EMBEDDED_BOUNCING_BALL_FILENAME);
         EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, EMBEDDED_BOUNCING_BALL_FILENAME);
@@ -221,6 +242,7 @@ public class ModuleControllerTest {
         dockerClient = DockerHelper.newClient();
         initServiceCatalogueMock();
         initLocalDockerRegistry();
+        initialized = true;
     }
 
 
@@ -230,9 +252,9 @@ public class ModuleControllerTest {
     }
 
 
-    private static void initServiceCatalogueMock() throws SerializationException, IOException {
+    private void initServiceCatalogueMock() throws SerializationException, IOException {
         SERVICE_CATALOG_MOCK.start();
-        System.setProperty("modapto.service-catalogue.url", SERVICE_CATALOG_MOCK.baseUrl());
+        config.setServiceCatalogueUrl(SERVICE_CATALOG_MOCK.baseUrl());
         SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", EMBEDDED_SMART_SERVICE_ID)))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -251,22 +273,33 @@ public class ModuleControllerTest {
     }
 
 
-    private static void initLocalDockerRegistry() {
-        int dockerRegistryPortInternal = 5000;
-        localDockerRegistry = new GenericContainer<>(DockerImageName.parse("registry:2")).withExposedPorts(dockerRegistryPortInternal);
+    private void initLocalDockerRegistry() {
+        localDockerRegistry = new GenericContainer<>(DockerImageName.parse(testConfig.getLocalDockerRegistryImage()))
+                .withExposedPorts(testConfig.getLocalDockerRegistryInternalPort())
+                .waitingFor(Wait.forListeningPort())
+                .waitingFor(Wait.forHttp("/v2/").forStatusCode(200));
+        localDockerRegistry.setPortBindings(List.of(testConfig.getLocalDockerRegistryExternalPort() + ":" + testConfig.getLocalDockerRegistryInternalPort()));
         localDockerRegistry.start();
-        localDockerRegistryUrl = "localhost:" + localDockerRegistry.getMappedPort(dockerRegistryPortInternal);
-        DockerClient dockerClient = DockerHelper.newClient(DockerConfig.builder()
-                .registryUrl(localDockerRegistryUrl)
+        localDockerRegistryUrl = localDockerRegistry.getHost() + ":" + testConfig.getLocalDockerRegistryExternalPort();
+        LOGGER.info("registry registry starter: {}", localDockerRegistryUrl);
+
+        DockerClient localDockerClient = DockerHelper.newClient(DockerConfig.builder()
+                .registryUrl("http://" + localDockerRegistryUrl)
                 .build());
-        internalServiceDockerImage = DockerHelper.buildImage(dockerClient, new File("src/test/resources/container/internal-service-mock/Dockerfile"), INTERNAL_SERVICE_IMAGE_NAME);
-        DockerHelper.publish(dockerClient, localDockerRegistryUrl, internalServiceDockerImage);
+
+        String internalServiceDockerImage = DockerHelper.buildImage(
+                localDockerClient,
+                new File("src/test/resources/container/internal-service-mock/Dockerfile"),
+                INTERNAL_SERVICE_IMAGE_NAME);
+        DockerHelper.publish(localDockerClient, localDockerRegistryUrl, internalServiceDockerImage);
     }
 
 
     @AfterAll
     public static void teardown() throws Exception {
-        dockerClient.close();
+        if (Objects.nonNull(dockerClient)) {
+            dockerClient.close();
+        }
         SERVICE_CATALOG_MOCK.stop();
         localDockerRegistry.stop();
     }
@@ -277,11 +310,29 @@ public class ModuleControllerTest {
         List<Container> containers = dockerClient.listContainersCmd().withShowAll(true).exec();
         for (Container container: containers) {
             if (Objects.equals(dtDeploymentDockerConfig.getImage(), container.getImage())) {
-                dockerClient.stopContainerCmd(container.getId()).exec();
-                dockerClient.removeContainerCmd(container.getId()).exec();
-                LOGGER.info("cleaned up container {}", container.getId());
+                try {
+                    DockerHelper.removeContainer(dockerClient, container.getId());
+                    LOGGER.info("cleaned up container {}", container.getId());
+                }
+                catch (DockerException e) {
+                    LOGGER.debug("exception cleaning up module container {}", container.getId(), e);
+                }
             }
         }
+        smartServiceService.getAllSmartServices().stream()
+                .filter(InternalSmartService.class::isInstance)
+                .map(InternalSmartService.class::cast)
+                .filter(x -> Objects.nonNull(x.getContainerId()))
+                .forEach(x -> {
+                    try {
+                        dockerClient.stopContainerCmd(x.getContainerId()).exec();
+                        dockerClient.removeContainerCmd(x.getContainerId()).exec();
+                        LOGGER.info("cleaned up container {}", x.getContainerId());
+                    }
+                    catch (DockerException e) {
+                        LOGGER.debug("exception cleaning up internal smart service container {}", x.getContainerId(), e);
+                    }
+                });
     }
 
 
@@ -289,7 +340,7 @@ public class ModuleControllerTest {
     public void testCreateModule() throws Exception {
         ModuleRequestDto payload = ModuleRequestDto.builder()
                 .aas(asJsonBase64(newDefaultEnvironment()))
-                .type(DT_CONNECTOR_TYPE)
+                .type(config.getDeploymentType())
                 .format(DataFormat.JSON)
                 .build();
         MvcResult result = mockMvc.perform(post("/module")
@@ -313,7 +364,7 @@ public class ModuleControllerTest {
                 .content(mapper.writeValueAsString(
                         ModuleRequestDto.builder()
                                 .aas(asJsonBase64(environment))
-                                .type(DT_CONNECTOR_TYPE)
+                                .type(config.getDeploymentType())
                                 .format(DataFormat.JSON)
                                 .build())))
                 .andDo(MockMvcResultHandlers.print())
@@ -333,7 +384,7 @@ public class ModuleControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(ModuleRequestDto.builder()
                         .aas(asJsonBase64(environment))
-                        .type(DT_CONNECTOR_TYPE)
+                        .type(config.getDeploymentType())
                         .format(DataFormat.JSON)
                         .build())))
                 .andDo(MockMvcResultHandlers.print())
@@ -418,7 +469,7 @@ public class ModuleControllerTest {
                 .providedModel(EnvironmentContext.builder()
                         .environment(environment)
                         .build())
-                .type(DT_CONNECTOR_TYPE)
+                .type(config.getDeploymentType())
                 .build());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
@@ -544,12 +595,12 @@ public class ModuleControllerTest {
     }
 
 
-    private static Module newDefaultModule() {
+    private Module newDefaultModule() {
         return Module.builder()
                 .providedModel(EnvironmentContext.builder()
                         .environment(newDefaultEnvironment())
                         .build())
-                .type(DT_CONNECTOR_TYPE)
+                .type(dtDeplyomentType)
                 .build();
     }
 
@@ -577,7 +628,7 @@ public class ModuleControllerTest {
                 .body(payload)
                 .retrieve()
                 .toEntity(String.class);
-        LOGGER.info("response from smart service inocation...");
+        LOGGER.info("response from smart service invocation...");
         LOGGER.info("name: {}", service.getName());
         LOGGER.info("status: {}", serviceResponse.getStatusCode());
         LOGGER.info("payload: {}", serviceResponse.getBody());

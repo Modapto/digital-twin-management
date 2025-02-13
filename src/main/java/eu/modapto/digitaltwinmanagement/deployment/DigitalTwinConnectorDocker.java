@@ -22,34 +22,34 @@ import com.github.dockerjava.api.DockerClient;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
-import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.filestorage.filesystem.FileStorageFilesystemConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
-import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
+import eu.modapto.digitaltwinmanagement.util.DockerHelper.ContainerInfo;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorDocker.class);
-    private static final String CONTAINER_MODEL_FILE = "/app/model.aasx";
-    private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
-    private static final int CONTAINER_PORT_INTERNAL = 8080;
-    private static final int MESSAGEBUS_PORT_INTERNAL = 1883;
 
-    private final DigitalTwinDeploymentDockerConfig dockerConfig;
+    private static final int CONTAINER_HTTP_PORT_INTERNAL = 8080;
+    private static final String CONTAINER_MODEL_FILE = "/app/model.json";
+    private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
+    private static final String CONTAINER_FILE_STORGE_PATH = "/app/file-storage";
     private final Path contextPath = Files.createTempDirectory("dt-context-files");
-    private final File modelFile = contextPath.resolve("model.aasx").toFile();
+    private final File modelFile = contextPath.resolve("model.json").toFile();
     private final File configFile = contextPath.resolve("config.json").toFile();
+    private final Path fileStoragePath = contextPath.resolve("file-storage");
+    private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
     private DockerClient dockerClient;
     private String containerId;
@@ -79,13 +79,23 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         }
         containerId = DockerHelper.startContainer(
                 dockerClient,
-                dockerConfig.getImage(),
-                Map.of(config.getPort(), CONTAINER_PORT_INTERNAL,
-                        config.getMessageBusPort(), MESSAGEBUS_PORT_INTERNAL),
-                Map.of(modelFile, CONTAINER_MODEL_FILE, configFile, CONTAINER_CONFIG_FILE),
-                Map.of("faaast_model", CONTAINER_MODEL_FILE,
-                        "faaast_config", CONTAINER_CONFIG_FILE,
-                        "faaast_loglevel_faaast", "TRACE"));
+                ContainerInfo.builder()
+                        .imageName(dockerConfig.getImage())
+                        .containerName(DockerHelper.getContainerName(config.getModule()))
+                        .portMapping(config.getHttpPort(), CONTAINER_HTTP_PORT_INTERNAL)
+                        .fileMapping(modelFile, CONTAINER_MODEL_FILE)
+                        .fileMapping(configFile, CONTAINER_CONFIG_FILE)
+                        .fileMapping(fileStoragePath.toFile(), CONTAINER_FILE_STORGE_PATH)
+                        .environmentVariable("faaast_model", CONTAINER_MODEL_FILE)
+                        .environmentVariable("faaast_config", CONTAINER_CONFIG_FILE)
+                        .environmentVariable("faaast_loglevel_faaast", "TRACE")
+                        .linkedContainers(config.getModule().getServices().stream()
+                                .filter(InternalSmartService.class::isInstance)
+                                .map(InternalSmartService.class::cast)
+                                .collect(Collectors.toMap(
+                                        x -> x.getContainerId(),
+                                        x -> x.getName())))
+                        .build());
         running = true;
         LOGGER.info("docker container started with ID {}", containerId);
     }
@@ -107,6 +117,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private void initContainer() throws IOException, SerializationException {
         writeConfigFile();
         writeModelFile();
+        writeAuxiliaryFiles();
     }
 
 
@@ -119,22 +130,14 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     private void writeConfigFile() throws IOException {
         ServiceConfig serviceConfig = ServiceConfig.builder()
-                .endpoint(HttpEndpointConfig.builder()
-                        .ssl(false)
-                        .cors(true)
-                        .port(CONTAINER_PORT_INTERNAL)
-                        .build())
-                .persistence(PersistenceInMemoryConfig.builder().build())
-                .messageBus(MessageBusMqttConfig.builder()
-                        .host("0.0.0.0")
-                        .internal(true)
-                        .port(MESSAGEBUS_PORT_INTERNAL)
-                        .clientCertificate(null)
-                        .serverCertificate(null)
-                        .build())
-                .fileStorage(FileStorageInMemoryConfig.builder().build())
+                .endpoint(getHttpEndpointConfig(CONTAINER_HTTP_PORT_INTERNAL))
+                .messageBus(getMessageBusMqttConfig())
+                .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())
                 .assetConnections(config.getAssetConnections())
-                .submodelTemplateProcessor(SimulationSubmodelTemplateProcessorConfig.builder().build())
+                .persistence(PersistenceInMemoryConfig.builder().build())
+                .fileStorage(FileStorageFilesystemConfig.builder()
+                        .existingDataPath(CONTAINER_FILE_STORGE_PATH)
+                        .build())
                 .build();
         new ObjectMapper()
                 .enable(SerializationFeature.INDENT_OUTPUT)
@@ -145,6 +148,18 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
 
     private void writeModelFile() throws IOException, SerializationException {
-        EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(modelFile, config.getEnvironmentContext());
+        EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, config.getEnvironmentContext());
+    }
+
+
+    private void writeAuxiliaryFiles() throws IOException, SerializationException {
+        Files.createDirectory(fileStoragePath);
+        for (var file: config.getEnvironmentContext().getFiles()) {
+            Files.write(
+                    fileStoragePath.resolve(file.getPath().startsWith("/")
+                            ? file.getPath().substring(1)
+                            : file.getPath()),
+                    file.getFileContent());
+        }
     }
 }

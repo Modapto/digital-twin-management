@@ -16,7 +16,7 @@ package eu.modapto.digitaltwinmanagement.model;
 
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.jpa.EnvironmentContextConverter;
 import jakarta.persistence.CascadeType;
@@ -53,7 +53,7 @@ public class Module {
     @Builder.Default
     private List<SmartService> services = new ArrayList<>();
 
-    private DigitalTwinConnectorType type;
+    private DeploymentType type;
 
     @Convert(converter = EnvironmentContextConverter.class)
     @Lob

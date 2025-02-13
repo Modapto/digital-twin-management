@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.messagebus;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.modapto.digitaltwinmanagement.config.KafkaConfig;
 import eu.modapto.digitaltwinmanagement.model.event.AbstractEvent;
 import eu.modapto.digitaltwinmanagement.util.Processor;
 import jakarta.annotation.PostConstruct;
@@ -28,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -40,11 +40,8 @@ public class KafkaBridge {
     private BlockingQueue<AbstractEvent> eventQueue;
     private ExecutorService executorService;
 
-    @Value("${dt.management.kafka.queue.size:100}")
-    private int queueSize;
-
-    @Value("${dt.management.kafka.thread.count:1}")
-    private int threadCount;
+    @Autowired
+    private KafkaConfig kafkaConfig;
 
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
@@ -54,10 +51,10 @@ public class KafkaBridge {
 
     @PostConstruct
     public void init() {
-        eventQueue = new ArrayBlockingQueue<>(queueSize);
-        executorService = Executors.newFixedThreadPool(threadCount);
-        for (int i = 0; i < threadCount; i++) {
-            executorService.submit(new Processor<AbstractEvent>(eventQueue, this::publishToKafka, "kafka-producer"));
+        eventQueue = new ArrayBlockingQueue<>(kafkaConfig.getQueueSize());
+        executorService = Executors.newFixedThreadPool(kafkaConfig.getThreadCount());
+        for (int i = 0; i < kafkaConfig.getThreadCount(); i++) {
+            executorService.submit(new Processor<>(eventQueue, this::publishToKafka, "kafka-producer"));
         }
     }
 
@@ -66,12 +63,14 @@ public class KafkaBridge {
         if (!eventQueue.offer(event)) {
             LOGGER.error("Failed to add event to event queue");
         }
+        LOGGER.trace("event queued for Kafka (type: {})", event.getClass().getSimpleName());
     }
 
 
     private void publishToKafka(AbstractEvent event) {
         try {
             kafkaTemplate.send(event.getTopic(), mapper.writeValueAsString(event));
+            LOGGER.trace("event published on Kafka (type: {})", event.getClass().getSimpleName());
         }
         catch (Exception e) {
             LOGGER.warn("failed to publish event to Kafka (reason: {})", e.getMessage(), e);
@@ -95,4 +94,5 @@ public class KafkaBridge {
         List<Runnable> list = executorService.shutdownNow();
         LOGGER.warn("There were {} messages left on the Kafka queue.", list.size());
     }
+
 }

@@ -16,6 +16,7 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
+import eu.modapto.digitaltwinmanagement.model.Module;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,8 +27,10 @@ import lombok.Setter;
 @Setter
 @Builder
 public class DigitalTwinConfig {
+    private Module module;
     private EnvironmentContext environmentContext;
-    private int port;
-    private int messageBusPort;
+    private int httpPort;
+    private String messageBusMqttHost;
+    private int messageBusMqttPort;
     private List<AssetConnectionConfig> assetConnections;
 }

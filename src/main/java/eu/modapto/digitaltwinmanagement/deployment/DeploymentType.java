@@ -14,7 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.deployment;
 
-public enum DigitalTwinConnectorType {
+public enum DeploymentType {
     DOCKER,
     INTERNAL
 }

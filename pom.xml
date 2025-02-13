@@ -20,6 +20,7 @@
         <java.version>17</java.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <maven.plugin.spotless.version>2.43.0</maven.plugin.spotless.version>
+        <moquette.version>0.15.2</moquette.version>
         <paho.version>1.2.5</paho.version>
         <plugin.lombock.version>1.18.34</plugin.lombock.version>
         <plugin.properties-maven.version>1.2.1</plugin.properties-maven.version>
@@ -112,6 +113,37 @@
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
             <artifactId>persistence-memory</artifactId>
             <version>${faaast.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>de.fraunhofer.iosb.io.moquette</groupId>
+            <artifactId>moquette-broker</artifactId>
+            <version>${moquette.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.h2database</groupId>
+                    <artifactId>h2-mvstore</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.bugsnag</groupId>
+                    <artifactId>bugsnag</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.librato.metrics</groupId>
+                    <artifactId>librato-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>eu.modapto.dt.faaast</groupId>

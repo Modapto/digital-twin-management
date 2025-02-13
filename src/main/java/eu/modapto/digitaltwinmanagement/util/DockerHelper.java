@@ -17,14 +17,13 @@ package eu.modapto.digitaltwinmanagement.util;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.BuildImageCmd;
 import com.github.dockerjava.api.command.BuildImageResultCallback;
-import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.PullImageCmd;
-import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.BuildResponseItem;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Info;
+import com.github.dockerjava.api.model.Link;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.PushResponseItem;
 import com.github.dockerjava.api.model.Volume;
@@ -34,6 +33,8 @@ import com.github.dockerjava.core.command.PushImageResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
+import eu.modapto.digitaltwinmanagement.model.Module;
+import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
@@ -41,12 +42,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.Singular;
 
 
 public class DockerHelper {
 
     private static final String DEFAULT_TAG = "latest";
+
+    private DockerHelper() {}
+
 
     public static DockerClient newClient() {
         return newClient(DockerConfig.builder().build());
@@ -57,6 +64,7 @@ public class DockerHelper {
         try {
             DefaultDockerClientConfig.Builder clientConfig = DefaultDockerClientConfig
                     .createDefaultConfigBuilder()
+                    //.withDockerTlsVerify(false)
                     .withRegistryUrl(config.getRegistryUrl());
             if (!StringHelper.isBlank(config.getRegistryUsername())) {
                 clientConfig.withRegistryUsername(config.getRegistryUsername());
@@ -109,35 +117,29 @@ public class DockerHelper {
     }
 
 
-    public static String createContainer(DockerClient client,
-                                         String imageName,
-                                         String containerName,
-                                         Map<Integer, Integer> portMappings,
-                                         Map<File, String> fileMappings,
-                                         Map<String, String> environment) {
-        ensureImagePresent(client, imageName);
-        stopAndDeleteContainerByName(client, containerName);
-        return client.createContainerCmd(imageName)
-                .withExposedPorts(portMappings.entrySet().stream()
+    public static String createContainer(DockerClient client, ContainerInfo containerInfo) {
+        ensureImagePresent(client, containerInfo.getImageName());
+        stopAndDeleteContainerByName(client, containerInfo.getContainerName());
+        return client.createContainerCmd(containerInfo.getImageName())
+                .withExposedPorts(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> new ExposedPort(x.getValue()))
                         .toList())
                 .withHostConfig(new HostConfig()
-                        .withBinds(fileMappings.entrySet().stream()
-                                .map(x -> new Bind(getHostFilename(client, x.getKey()), new Volume(x.getValue())))
+                        .withBinds(containerInfo.getFileMappings().entrySet().stream()
+                                .map(x -> new Bind(x.getKey().getAbsolutePath(), new Volume(x.getValue())))
                                 .toList())
-                        .withPortBindings(portMappings.entrySet().stream()
+                        .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
                                 .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
+                                .toList())
+                        .withExtraHosts("host.docker.internal:host-gateway")
+                        .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
+                                .map(x -> new Link(x.getKey(), x.getValue()))
                                 .toList()))
-                .withName(containerName)
-                .withEnv(environment.entrySet().stream()
+                .withName(containerInfo.getContainerName())
+                .withEnv(containerInfo.getEnvironmentVariables().entrySet().stream()
                         .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
                         .toList())
                 .exec().getId();
-    }
-
-
-    public static void startContainer(DockerClient dockerClient, String containerId) {
-        dockerClient.startContainerCmd(containerId).exec();
     }
 
 
@@ -166,15 +168,6 @@ public class DockerHelper {
     }
 
 
-    public static String startContainer(DockerClient client,
-                                        String image,
-                                        Map<Integer, Integer> portMappings,
-                                        Map<File, String> fileMappings,
-                                        Map<String, String> environment) {
-        return startContainer(client, image, null, portMappings, fileMappings, environment);
-    }
-
-
     private static boolean imageExists(DockerClient client, String image) {
         return client.listImagesCmd().exec().stream()
                 .anyMatch(x -> x.getRepoTags() != null &&
@@ -194,35 +187,15 @@ public class DockerHelper {
 
 
     public static String startContainer(DockerClient client,
-                                        String imageName,
-                                        String containerName,
-                                        Map<Integer, Integer> portMappings,
-                                        Map<File, String> fileMappings,
-                                        Map<String, String> environment) {
-        if (!imageExists(client, imageName)) {
-            pullImage(client, imageName);
+                                        ContainerInfo containerInfo) {
+        if (!imageExists(client, containerInfo.getImageName())) {
+            pullImage(client, containerInfo.getImageName());
         }
-        stopContainerIfRunningByName(client, containerName);
-        removeContainerByName(client, containerName);
-        CreateContainerResponse container = client.createContainerCmd(imageName)
-                .withExposedPorts(portMappings.entrySet().stream()
-                        .map(x -> new ExposedPort(x.getValue()))
-                        .toList())
-                .withHostConfig(new HostConfig()
-                        .withBinds(fileMappings.entrySet().stream()
-                                .map(x -> new Bind(getHostFilename(client, x.getKey()), new Volume(x.getValue())))
-                                .toList())
-                        .withPortBindings(portMappings.entrySet().stream()
-                                .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
-                                .toList()))
-                .withName(Optional.ofNullable(containerName).orElse(UUID.randomUUID().toString()))
-                .withEnv(environment.entrySet().stream()
-                        .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
-                        .toList())
-                .exec();
-        StartContainerCmd startCmd = client.startContainerCmd(container.getId());
-        startCmd.exec();
-        return container.getId();
+        stopContainerIfRunningByName(client, containerInfo.getContainerName());
+        removeContainerByName(client, containerInfo.getContainerName());
+        String containerId = createContainer(client, containerInfo);
+        client.startContainerCmd(containerId).exec();
+        return containerId;
     }
 
 
@@ -282,47 +255,6 @@ public class DockerHelper {
     }
 
 
-    private static String getHostFilename(DockerClient client, File file) {
-        if (!pathConversionNeeded(client)) {
-            return file.getAbsolutePath();
-        }
-        return file.getAbsolutePath().replace("C:", "/mnt/c").replace("\\", "/");
-    }
-
-
-    private DockerHelper() {}
-
-
-    /**
-     * Creates a docker container using the provided image.
-     *
-     * @param client the docker client to use
-     * @param imageName the name of the image
-     * @return the container ID of the created container
-     */
-    public String createContainer(DockerClient client, String imageName) {
-        ensureImagePresent(client, imageName);
-        return client.createContainerCmd(imageName).exec().getId();
-    }
-
-
-    /**
-     * Creates a docker container using the provided image and name.
-     *
-     * @param client the docker client to use
-     * @param imageName the name of the image
-     * @param containerName the name of the container
-     * @return the container ID of the created container
-     */
-    public String createContainer(DockerClient client, String imageName, String containerName) {
-        ensureImagePresent(client, imageName);
-        stopAndDeleteContainerByName(client, containerName);
-        return client.createContainerCmd(imageName)
-                .withName(containerName)
-                .exec().getId();
-    }
-
-
     public void pushImage(DockerClient dockerClient, String imageName, String repository) throws InterruptedException {
         dockerClient.pushImageCmd(imageName)
                 .withName(repository)
@@ -335,9 +267,28 @@ public class DockerHelper {
     }
 
 
-    public String startContainer(DockerClient dockerClient, String imageName, String containerName) {
-        String containerId = createContainer(dockerClient, imageName, containerName);
-        startContainer(dockerClient, containerId);
-        return containerId;
+    public static String getContainerName(Module module) {
+        return String.format("modapto-module-%d", module.getId());
+    }
+
+
+    public static String getContainerName(RestBasedSmartService service) {
+        return String.format("modapto-service-%d", service.getId());
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    public static class ContainerInfo {
+        private String imageName;
+        private String containerName;
+        @Singular
+        private Map<Integer, Integer> portMappings;
+        @Singular
+        private Map<File, String> fileMappings;
+        @Singular
+        private Map<String, String> environmentVariables;
+        @Singular
+        private Map<String, String> linkedContainers;
     }
 }

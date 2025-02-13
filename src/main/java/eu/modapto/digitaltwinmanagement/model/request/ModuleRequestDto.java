@@ -16,7 +16,7 @@ package eu.modapto.digitaltwinmanagement.model.request;
 
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
-import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorType;
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +40,7 @@ public class ModuleRequestDto {
     private DataFormat format = DataFormat.JSON;
 
     @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, defaultValue = "DOCKER")
-    private DigitalTwinConnectorType type;
+    private DeploymentType type;
 
     @Builder.Default
     @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)

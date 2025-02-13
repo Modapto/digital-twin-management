@@ -16,33 +16,24 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.Service;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
-import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
 import java.util.stream.Collectors;
 
 
 public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
+
     private final Service service;
 
     public DigitalTwinConnectorInternal(DigitalTwinConfig config) throws Exception {
         super(config);
         service = new Service(ServiceConfig.builder()
-                .endpoint(HttpEndpointConfig.builder()
-                        .cors(true)
-                        .port(config.getPort())
-                        .sni(false)
-                        .ssl(false)
-                        .includeErrorDetails(true)
-                        .build())
+                .endpoint(getHttpEndpointConfig(config.getHttpPort()))
+                .messageBus(getMessageBusMqttConfig())
+                .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())
+                .assetConnections(config.getAssetConnections())
                 .persistence(PersistenceInMemoryConfig.builder()
                         .initialModel(config.getEnvironmentContext().getEnvironment())
-                        .build())
-                .messageBus(MessageBusMqttConfig.builder()
-                        .internal(true)
-                        .port(config.getMessageBusPort())
                         .build())
                 .fileStorage(FileStorageInMemoryConfig.builder()
                         .files(config.getEnvironmentContext().getFiles().stream()
@@ -50,8 +41,6 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
                                         x -> x.getPath(),
                                         x -> x.getFileContent())))
                         .build())
-                .submodelTemplateProcessor(new SimulationSubmodelTemplateProcessorConfig())
-                .assetConnections(config.getAssetConnections())
                 .build());
     }
 

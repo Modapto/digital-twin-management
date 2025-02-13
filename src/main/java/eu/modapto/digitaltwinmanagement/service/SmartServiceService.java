@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
@@ -27,7 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +39,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class SmartServiceService {
 
-    @Value("${modapto.service-catalogue.url}")
-    private String serviceCatalogueEndpoint;
+    @Autowired
+    private DigitalTwinManagementConfig config;
 
     @Autowired
     private SmartServiceRepository smartServiceRepository;
@@ -119,7 +119,7 @@ public class SmartServiceService {
 
 
     private SmartService getServiceDetails(String serviceCatalogId) {
-        SmartService result = RestClient.create(serviceCatalogueEndpoint)
+        SmartService result = RestClient.create(config.getServiceCatalogueUrl())
                 .get()
                 .uri("/service/{serviceId}", serviceCatalogId)
                 .exchange((request, response) -> {
@@ -128,7 +128,7 @@ public class SmartServiceService {
                     }
                     throw new ResponseStatusException(
                             HttpStatus.BAD_GATEWAY,
-                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s", serviceCatalogueEndpoint));
+                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s", config.getServiceCatalogueUrl()));
                 });
         result.setServiceCatalogId(serviceCatalogId);
         return result;

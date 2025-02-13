@@ -30,7 +30,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class DockerConfig {
     @Builder.Default
-    private String host = "tcp://localhost:2375";
+    private String host = "tcp://127.0.0.1:2375";
     @Builder.Default
     private String registryUrl = "ghcr.io";
     private String registryUsername;

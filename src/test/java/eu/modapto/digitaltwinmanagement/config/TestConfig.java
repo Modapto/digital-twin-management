@@ -15,13 +15,19 @@
 package eu.modapto.digitaltwinmanagement.config;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 
-@Component
-@ConfigurationProperties(prefix = "dt-management.service.internal.deployment.docker")
 @Getter
 @Setter
-public class InternalServiceDeploymentDockerConfig extends DockerConfig {}
+@NoArgsConstructor
+@Component
+@ConfigurationProperties(prefix = "dt.management.test")
+public class TestConfig {
+    private int localDockerRegistryInternalPort = 5000;
+    private int localDockerRegistryExternalPort = 5000;
+    private String localDockerRegistryImage = "registry:2";
+}
