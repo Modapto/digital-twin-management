@@ -33,7 +33,9 @@ import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.command.PushImageResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import java.io.File;
@@ -54,8 +56,14 @@ import org.slf4j.LoggerFactory;
 public class DockerHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerHelper.class);
     private static final String DEFAULT_TAG = "latest";
+    private static DigitalTwinManagementConfig config;
 
     private DockerHelper() {}
+
+
+    public static void setConfig(DigitalTwinManagementConfig dtConfig) {
+        config = dtConfig;
+    }
 
 
     public static DockerClient newClient() {
@@ -287,6 +295,9 @@ public class DockerHelper {
 
 
     public static String getCurrentNetwork(DockerClient client) {
+        if (config.getDeploymentType() == DeploymentType.INTERNAL) {
+            return null;
+        }
         try {
             return client.listContainersCmd().withIdFilter(List.of(getCurrentContainerId())).exec()
                     .get(0).getNetworkSettings().getNetworks()
@@ -295,7 +306,7 @@ public class DockerHelper {
         catch (Exception e) {
             LOGGER.debug("resolving current docker network failed", e);
         }
-        return "";
+        return null;
     }
 
     @Getter

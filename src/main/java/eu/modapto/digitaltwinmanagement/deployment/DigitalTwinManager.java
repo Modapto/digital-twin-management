@@ -167,13 +167,11 @@ public class DigitalTwinManager {
 
 
     private Address getModuleToServiceAddress(SmartService service, int port) {
-        if (service instanceof InternalSmartService internalService) {
-            DeploymentType moduleType = service.getModule().getType();
-            if (moduleType == DeploymentType.DOCKER) {
-                return new Address(
-                        DockerHelper.getContainerName(internalService),
-                        internalService.getInternalPort());
-            }
+        DeploymentType moduleType = service.getModule().getType();
+        if (service instanceof InternalSmartService internalService && moduleType == DeploymentType.DOCKER) {
+            return new Address(
+                    DockerHelper.getContainerName(internalService),
+                    internalService.getInternalPort());
         }
         return new Address(LOCALHOST, port);
     }
