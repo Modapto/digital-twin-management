@@ -25,6 +25,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.filesystem.FileStorageFilesystemConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
@@ -32,7 +33,9 @@ import eu.modapto.digitaltwinmanagement.util.DockerHelper.ContainerInfo;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,15 +44,18 @@ import org.slf4j.LoggerFactory;
 public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorDocker.class);
 
-    private static final int CONTAINER_HTTP_PORT_INTERNAL = 8080;
+    public static final int CONTAINER_HTTP_PORT_INTERNAL = 8080;
     private static final String CONTAINER_MODEL_FILE = "/app/model.json";
     private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
     private static final String CONTAINER_FILE_STORGE_PATH = "/app/file-storage";
-    private final Path contextPath = Files.createTempDirectory("dt-context-files");
-    private final File modelFile = contextPath.resolve("model.json").toFile();
-    private final File configFile = contextPath.resolve("config.json").toFile();
-    private final Path fileStoragePath = contextPath.resolve("file-storage");
-    private final DigitalTwinDeploymentDockerConfig dockerConfig;
+
+    private static final Path TMP_DIR = Paths.get(System.getProperty("java.io.tmpdir") + "/dt-context");
+
+    private Path contextPath;
+    private File modelFile;
+    private File configFile;
+    private Path fileStoragePath;
+    private DigitalTwinDeploymentDockerConfig dockerConfig;
 
     private DockerClient dockerClient;
     private String containerId;
@@ -83,9 +89,9 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .imageName(dockerConfig.getImage())
                         .containerName(DockerHelper.getContainerName(config.getModule()))
                         .portMapping(config.getHttpPort(), CONTAINER_HTTP_PORT_INTERNAL)
-                        .fileMapping(modelFile, CONTAINER_MODEL_FILE)
-                        .fileMapping(configFile, CONTAINER_CONFIG_FILE)
-                        .fileMapping(fileStoragePath.toFile(), CONTAINER_FILE_STORGE_PATH)
+                        .fileMapping(mapToHost(modelFile), CONTAINER_MODEL_FILE)
+                        .fileMapping(mapToHost(configFile), CONTAINER_CONFIG_FILE)
+                        .fileMapping(mapToHost(fileStoragePath.toFile()), CONTAINER_FILE_STORGE_PATH)
                         .environmentVariable("faaast_model", CONTAINER_MODEL_FILE)
                         .environmentVariable("faaast_config", CONTAINER_CONFIG_FILE)
                         .environmentVariable("faaast_loglevel_faaast", "TRACE")
@@ -115,9 +121,21 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
 
     private void initContainer() throws IOException, SerializationException {
+        initTempDirectoryAndFiles();
         writeConfigFile();
         writeModelFile();
         writeAuxiliaryFiles();
+    }
+
+
+    private void initTempDirectoryAndFiles() throws IOException {
+        if (!Files.exists(TMP_DIR)) {
+            Files.createDirectories(TMP_DIR);
+        }
+        contextPath = Files.createTempDirectory(TMP_DIR, "dt-");
+        modelFile = contextPath.resolve("model.json").toFile();
+        configFile = contextPath.resolve("config.json").toFile();
+        fileStoragePath = contextPath.resolve("file-storage");
     }
 
 
@@ -160,6 +178,22 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                             ? file.getPath().substring(1)
                             : file.getPath()),
                     file.getFileContent());
+        }
+    }
+
+
+    private File mapToHost(File file) {
+        if (StringHelper.isBlank(dockerConfig.getTmpDirHostMapping())) {
+            return file;
+        }
+        try {
+            Path hostDir = Path.of(dockerConfig.getTmpDirHostMapping());
+            File result1 = new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
+            return result1;
+        }
+        catch (InvalidPathException e) {
+            LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", dockerConfig.getTmpDirHostMapping(), e);
+            return file;
         }
     }
 }

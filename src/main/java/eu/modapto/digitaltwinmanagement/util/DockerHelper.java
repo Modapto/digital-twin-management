@@ -18,6 +18,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.BuildImageCmd;
 import com.github.dockerjava.api.command.BuildImageResultCallback;
 import com.github.dockerjava.api.command.PullImageCmd;
+import com.github.dockerjava.api.model.AccessMode;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.BuildResponseItem;
 import com.github.dockerjava.api.model.ExposedPort;
@@ -46,10 +47,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class DockerHelper {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(DockerHelper.class);
     private static final String DEFAULT_TAG = "latest";
 
     private DockerHelper() {}
@@ -126,12 +129,13 @@ public class DockerHelper {
                         .toList())
                 .withHostConfig(new HostConfig()
                         .withBinds(containerInfo.getFileMappings().entrySet().stream()
-                                .map(x -> new Bind(x.getKey().getAbsolutePath(), new Volume(x.getValue())))
+                                .map(x -> new Bind(x.getKey().toString(), new Volume(x.getValue()), AccessMode.ro))
                                 .toList())
                         .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
                                 .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
                                 .toList())
                         .withExtraHosts("host.docker.internal:host-gateway")
+                        .withNetworkMode(getCurrentNetwork(client))
                         .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
                                 .map(x -> new Link(x.getKey(), x.getValue()))
                                 .toList()))
@@ -274,6 +278,24 @@ public class DockerHelper {
 
     public static String getContainerName(RestBasedSmartService service) {
         return String.format("modapto-service-%d", service.getId());
+    }
+
+
+    public static String getCurrentContainerId() {
+        return System.getenv("HOSTNAME");
+    }
+
+
+    public static String getCurrentNetwork(DockerClient client) {
+        try {
+            return client.listContainersCmd().withIdFilter(List.of(getCurrentContainerId())).exec()
+                    .get(0).getNetworkSettings().getNetworks()
+                    .keySet().iterator().next();
+        }
+        catch (Exception e) {
+            LOGGER.debug("resolving current docker network failed", e);
+        }
+        return "";
     }
 
     @Getter

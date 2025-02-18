@@ -24,9 +24,9 @@ import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -96,9 +96,7 @@ public class SmartServiceService {
             service.setName(request.getName());
         }
         else {
-            service.setName(String.format("%s_%s",
-                    service.getName(),
-                    UUID.randomUUID().toString().replace("-", "").substring(0, 16)));
+            service.setName(String.format("%s_%s", service.getName(), IdHelper.uuidAlphanumeric16()));
         }
         if (Objects.nonNull(request.getDescription())) {
             service.setDescription(request.getDescription());

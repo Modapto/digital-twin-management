@@ -27,26 +27,25 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 public class DigitalTwinManagementConfig {
-    public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
-
     private String hostname;
 
     private int externalPort;
 
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
-    @Value("${dt-management.events.mqtt.port}")
-    private int mqttPort;
+
     @Value("${modapto.service-catalogue.url}")
     private String serviceCatalogueUrl;
+
+    @Value("${dt-management.events.mqtt.host:localhost}")
+    private String mqttHost;
+
+    @Value("${dt-management.events.mqtt.port}")
+    private int mqttPort;
 
     @Value("${dt-management.events.mqtt.queue.size:100}")
     private int mqttQueueSize;
 
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
-
-    public String getInternalHostname() {
-        return deploymentType == DeploymentType.DOCKER ? HOST_DOCKER_INTERNAL : hostname;
-    }
 }

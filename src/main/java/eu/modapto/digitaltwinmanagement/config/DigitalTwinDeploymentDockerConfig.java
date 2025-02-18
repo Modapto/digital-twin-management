@@ -26,4 +26,5 @@ import org.springframework.stereotype.Component;
 @Setter
 public class DigitalTwinDeploymentDockerConfig extends DockerConfig {
     private String image = "ghcr.io/modapto/digital-twin:latest";
+    private String tmpDirHostMapping;
 }

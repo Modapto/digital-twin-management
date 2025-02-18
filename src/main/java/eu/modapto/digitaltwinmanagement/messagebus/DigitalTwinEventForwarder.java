@@ -108,7 +108,7 @@ public class DigitalTwinEventForwarder {
         IConfig serverConfig = new MemoryConfig(new Properties());
         serverConfig.setProperty(BrokerConstants.IMMEDIATE_BUFFER_FLUSH_PROPERTY_NAME, String.valueOf(true));
         serverConfig.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(mqttPort));
-        serverConfig.setProperty(BrokerConstants.HOST_PROPERTY_NAME, "localhost");
+        serverConfig.setProperty(BrokerConstants.HOST_PROPERTY_NAME, config.getMqttHost());
         serverConfig.setProperty(BrokerConstants.ALLOW_ANONYMOUS_PROPERTY_NAME, "true");
         LOGGER.debug("starting MQTT broker (port: {})", mqttPort);
         mqttServer.startServer(serverConfig, List.of(new MqttInterceptHandler()), null, null, null);

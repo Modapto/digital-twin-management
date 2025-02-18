@@ -16,6 +16,7 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
 
 
@@ -45,6 +46,7 @@ public abstract class DigitalTwinConnector {
                 .internal(false)
                 .port(config.getMessageBusMqttPort())
                 .topicPrefix(String.format("module/%d/", config.getModule().getId()))
+                .clientId(String.format("module-%d-%s", config.getModule().getId(), IdHelper.uuidAlphanumeric8()))
                 .build();
     }
 

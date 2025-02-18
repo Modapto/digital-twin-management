@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.deployment;
 
 import static de.fraunhofer.iosb.ilt.faaast.service.request.handler.submodel.AbstractInvokeOperationRequestHandler.SEMANTIC_ID_QUALIFIER_VALUE_BY_REFERENCE;
-import static eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig.HOST_DOCKER_INTERNAL;
 import static eu.modapto.digitaltwinmanagement.model.ArgumentType.CONSTANT;
 import static eu.modapto.digitaltwinmanagement.model.ArgumentType.REFERENCE;
 
@@ -29,7 +28,6 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.LambdaExceptionHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
-import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.messagebus.DigitalTwinEventForwarder;
@@ -42,9 +40,9 @@ import eu.modapto.digitaltwinmanagement.model.SmartService;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.smartservice.embedded.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
-import eu.modapto.digitaltwinmanagement.util.Helper;
+import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import jakarta.annotation.PostConstruct;
-import jakarta.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
@@ -60,7 +58,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
 import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
@@ -84,6 +81,8 @@ import org.springframework.stereotype.Component;
 public class DigitalTwinManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinManager.class);
+    public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
+    public static final String LOCALHOST = "localhost";
     private static final String MODAPTO_SUBMODEL_ID_SHORT = "ModaptoSmartServices";
     private static final String MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE = "http://modapto.eu/smt/modapto-smart-services";
     private static final Reference MODAPTO_SUBMODEL_SEMANTIC_ID = ReferenceBuilder.global(MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE);
@@ -127,6 +126,59 @@ public class DigitalTwinManager {
     }
 
 
+    private String getModuleToHostAddress(Module module) {
+        DeploymentType hostType = config.getDeploymentType();
+        DeploymentType moduleType = module.getType();
+        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.INTERNAL) {
+            return LOCALHOST;
+        }
+        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.DOCKER) {
+            return HOST_DOCKER_INTERNAL;
+        }
+        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.INTERNAL) {
+            return LOCALHOST;
+        }
+        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
+            return System.getenv("HOSTNAME");
+        }
+        throw new IllegalStateException();
+    }
+
+
+    private Address getHostToModuleAddress(Module module, int port) {
+        DeploymentType hostType = config.getDeploymentType();
+        DeploymentType moduleType = module.getType();
+        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.INTERNAL) {
+            return new Address(LOCALHOST, port);
+        }
+        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.DOCKER) {
+            return new Address(LOCALHOST, port);
+        }
+        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.INTERNAL) {
+            return new Address(LOCALHOST, port);
+        }
+        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
+            return new Address(
+                    DockerHelper.getContainerName(module),
+                    DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL);
+        }
+        throw new IllegalStateException();
+    }
+
+
+    private Address getModuleToServiceAddress(SmartService service, int port) {
+        if (service instanceof InternalSmartService internalService) {
+            DeploymentType moduleType = service.getModule().getType();
+            if (moduleType == DeploymentType.DOCKER) {
+                return new Address(
+                        DockerHelper.getContainerName(internalService),
+                        internalService.getInternalPort());
+            }
+        }
+        return new Address(LOCALHOST, port);
+    }
+
+
     private void deploy(Module module, int port) throws Exception {
         createActualModel(module);
         DigitalTwinConnector dt = connectorFactory.create(
@@ -135,20 +187,21 @@ public class DigitalTwinManager {
                         .module(module)
                         .environmentContext(module.getActualModel())
                         .httpPort(port)
-                        .messageBusMqttHost(config.getInternalHostname())
+                        .messageBusMqttHost(getModuleToHostAddress(module))
                         .messageBusMqttPort(eventForwarder.getMqttPort())
                         .assetConnections(module.getAssetConnections())
                         .build());
         dt.start();
         instances.put(module.getId(), dt);
-        updateEndpoints(module, port);
         eventForwarder.subscribe(module);
-        waitUntilModuleIsRunning(module);
+        module.setEndpoint("/api/v3.0");
+        waitUntilModuleIsRunning(module, port);
+        updateEndpoints(module, port);
     }
 
 
-    private void createActualModel(Module module) throws URISyntaxException {
-        EnvironmentContext actualModel = Helper.deepCopy(module.getProvidedModel());
+    private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
+        EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         for (var service: module.getServices()) {
             validateServiceName(service);
             Submodel submodel = getOrCreateModaptoSubmodel(actualModel);
@@ -159,8 +212,6 @@ public class DigitalTwinManager {
             else if (service instanceof InternalSmartService internal) {
                 ensureDockerRunning();
                 int port = startContainerForInternalService(internal);
-                internal.setHttpEndpoint(internal.getHttpEndpoint()
-                        .replace("${container}", config.getInternalHostname() + ":" + port));
                 operation = addOperationNormal(service);
                 submodel.getSubmodelElements().add(operation);
                 module.getAssetConnections().add(createAssetConnection(
@@ -227,29 +278,54 @@ public class DigitalTwinManager {
     }
 
 
-    private void waitUntilModuleIsRunning(Module module) throws URISyntaxException {
-        waitUntilHttpServerIsRunning(HttpMethod.GET, module.getEndpoint() + "/submodels", "Digital Twin");
+    private void waitUntilModuleIsRunning(Module module, int port) throws URISyntaxException {
+        Address address = getHostToModuleAddress(module, port);
+        waitUntilHttpServerIsRunning(
+                HttpMethod.GET,
+                address.getHost(),
+                address.getPort(),
+                module.getEndpoint() + "/submodels", "Digital Twin");
         module.getServices().stream()
-                .filter(InternalSmartService.class::isInstance)
-                .map(InternalSmartService.class::cast)
                 .forEach(LambdaExceptionHelper.rethrowConsumer(x -> {
-                    waitUntilHttpServerIsRunning(HttpMethod.OPTIONS, x.getHttpEndpoint(), "Internal Service Docker Container");
-                    waitUntilHttpServerIsRunning(HttpMethod.GET, x.getOperationEndpoint(), "Smart Service");
+                    waitUntilHttpServerIsRunning(
+                            HttpMethod.GET,
+                            address.host,
+                            address.getPort(),
+                            x.getOperationEndpoint(),
+                            "Smart Service");
                 }));
     }
 
 
+    private void waitUntilHttpServerIsRunning(InternalSmartService service, int port) throws URISyntaxException {
+        waitUntilHttpServerIsRunning(
+                HttpMethod.OPTIONS,
+                config.getDeploymentType() == DeploymentType.INTERNAL
+                        ? LOCALHOST
+                        : DockerHelper.getContainerName(service),
+                config.getDeploymentType() == DeploymentType.INTERNAL
+                        ? port
+                        : service.getInternalPort(),
+                service.getHttpEndpoint(),
+                "Internal Service Docker Container");
+    }
+
+
+    private void waitUntilHttpServerIsRunning(HttpMethod method, String host, int port, String path, String type) throws URISyntaxException {
+        waitUntilHttpServerIsRunning(method, String.format("http://%s:%s%s", host, port, path), type);
+    }
+
+
     private void waitUntilHttpServerIsRunning(HttpMethod method, String url, String type) throws URISyntaxException {
-        String urlFromHost = url.replace(HOST_DOCKER_INTERNAL, config.getHostname());
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .method(method.toString(), HttpRequest.BodyPublishers.noBody())
-                .uri(new URI(urlFromHost))
+                .uri(new URI(url))
                 .timeout(Duration.ofSeconds(10))
                 .build();
         Instant startTime = Instant.now();
         long elapsedTime = 0;
-        LOGGER.debug("Waiting for {} to become available... (method: {}, endpoint: {}, timeout: {})", type, method, urlFromHost, TIMEOUT_REST_AVAILABLE_IN_MS);
+        LOGGER.debug("Waiting for {} to become available... (method: {}, endpoint: {}, timeout: {})", type, method, url, TIMEOUT_REST_AVAILABLE_IN_MS);
         while (elapsedTime < TIMEOUT_REST_AVAILABLE_IN_MS) {
             HttpResponse<String> response;
             try {
@@ -278,7 +354,7 @@ public class DigitalTwinManager {
 
 
     private void updateEndpoints(Module module, int port) {
-        module.setEndpoint(String.format("http://%s:%d/api/v3.0", config.getHostname(), port));
+        module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
         for (var service: module.getServices()) {
             service.setOperationEndpoint(module.getEndpoint() + service.getOperationEndpoint());
         }
@@ -310,7 +386,7 @@ public class DigitalTwinManager {
 
     private Submodel createModaptoSubmodel() {
         return new DefaultSubmodel.Builder()
-                .id(String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, UUID.randomUUID()))
+                .id(String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, IdHelper.uuid()))
                 .idShort(MODAPTO_SUBMODEL_ID_SHORT)
                 .build();
     }
@@ -323,7 +399,7 @@ public class DigitalTwinManager {
     }
 
 
-    private int startContainerForInternalService(InternalSmartService service) {
+    private int startContainerForInternalService(InternalSmartService service) throws URISyntaxException {
         int port = findFreePort();
         String containerId = DockerHelper.startContainer(
                 dockerClient,
@@ -333,6 +409,7 @@ public class DigitalTwinManager {
                         .portMapping(port, service.getInternalPort())
                         .build());
         service.setContainerId(containerId);
+        waitUntilHttpServerIsRunning(service, port);
         return port;
     }
 
@@ -369,40 +446,14 @@ public class DigitalTwinManager {
     }
 
 
-    private AssetConnectionConfig createAssetConnection(Reference operation, RestBasedSmartService service, int port) {
-        URL url;
-        URL baseUrl;
-        String urlPath;
-        String actualEndpoint = service.getHttpEndpoint();
-        int actualPort = port;
-        if (service instanceof InternalSmartService internal && config.getDeploymentType() == DeploymentType.DOCKER) {
-            actualEndpoint = actualEndpoint.replace(config.getInternalHostname(), DockerHelper.getContainerName(service));
-            actualPort = internal.getInternalPort();
-        }
-        try {
-            url = new URL(actualEndpoint);
-            baseUrl = UriBuilder.newInstance()
-                    .host(url.getHost())
-                    .port(actualPort > 0 ? actualPort : url.getPort())
-                    .scheme(url.getProtocol())
-                    .userInfo(url.getUserInfo())
-                    .build()
-                    .toURL();
-            urlPath = url.getPath();
-            if (!StringHelper.isBlank(url.getQuery())) {
-                urlPath += "?" + url.getQuery();
-            }
-        }
-        catch (MalformedURLException e) {
-            throw new IllegalArgumentException(String.format(
-                    "creating asset connection failed because of malformed service URL (reason: %s)", e.getMessage()));
-        }
+    private AssetConnectionConfig createAssetConnection(Reference operation, RestBasedSmartService service, int port) throws MalformedURLException {
+        Address address = getModuleToServiceAddress(service, port);
         return HttpAssetConnectionConfig.builder()
-                .baseUrl(baseUrl)
+                .baseUrl(String.format("http://%s:%d", address.getHost(), address.getPort()))
                 .operationProvider(operation, HttpOperationProviderConfig.builder()
                         .format("JSON")
                         .method(service.getMethod())
-                        .path(urlPath)
+                        .path(service.getHttpEndpoint())
                         .headers(service.getHeaders())
                         .template(service.getPayload())
                         .queries(service.getOutputMapping())
@@ -457,6 +508,26 @@ public class DigitalTwinManager {
         }
         catch (IOException e) {
             throw new RuntimeException("No free port found", e);
+        }
+    }
+
+    private static class Address {
+        private final String host;
+        private final int port;
+
+        private Address(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+
+
+        public String getHost() {
+            return host;
+        }
+
+
+        public int getPort() {
+            return port;
         }
     }
 }

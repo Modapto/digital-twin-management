@@ -14,9 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.jpa;
 
-import de.fraunhofer.iosb.ilt.faaast.service.dataformat.DeserializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
-import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import jakarta.persistence.AttributeConverter;
@@ -36,7 +34,7 @@ public class EnvironmentContextConverter implements AttributeConverter<Environme
         try {
             return EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(environmentContext);
         }
-        catch (SerializationException e) {
+        catch (Exception e) {
             throw new IllegalArgumentException("error writing AAS to database", e);
         }
     }
@@ -50,7 +48,7 @@ public class EnvironmentContextConverter implements AttributeConverter<Environme
         try {
             return EnvironmentSerializationManager.deserializerFor(DataFormat.AASX).read(new ByteArrayInputStream(data));
         }
-        catch (DeserializationException e) {
+        catch (Exception e) {
             throw new IllegalArgumentException("error reading AAS from database", e);
         }
     }

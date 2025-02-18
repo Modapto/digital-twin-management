@@ -42,7 +42,7 @@
             },
     "restDetails":
             {
-                "endpoint": "http://${container}/add",
+                "endpoint": "/add",
                 "method": "POST",
                 "headers":
                         {

@@ -21,8 +21,8 @@ import java.util.stream.Collectors;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.aasx.InMemoryFile;
 
 
-public class Helper {
-    private Helper() {
+public class EnvironmentHelper {
+    private EnvironmentHelper() {
 
     }
 

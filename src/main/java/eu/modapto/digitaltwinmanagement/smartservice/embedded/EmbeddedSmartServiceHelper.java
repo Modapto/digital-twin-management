@@ -20,12 +20,12 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import eu.modapto.dt.faaast.service.smt.simulation.FmuHelper;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Stream;
 import no.ntnu.ihb.fmi4j.importer.fmi2.Fmu;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.aasx.InMemoryFile;
@@ -226,12 +226,12 @@ public class EmbeddedSmartServiceHelper {
 
 
     private static String getFmuFilename(EmbeddedSmartService service) {
-        return service.getName() + ".fmu";
+        return "/" + service.getName() + ".fmu";
     }
 
 
     private static String randomId() {
-        return "id-" + UUID.randomUUID().toString().replace("-", "");
+        return "id-" + IdHelper.uuidAlphanumeric();
     }
 
 

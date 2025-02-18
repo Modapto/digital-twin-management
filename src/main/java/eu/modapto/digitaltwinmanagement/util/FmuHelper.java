@@ -24,7 +24,6 @@ import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.STRING;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import no.ntnu.ihb.fmi4j.Fmi4jVariableUtils;
 import no.ntnu.ihb.fmi4j.importer.fmi2.CoSimulationFmu;
@@ -156,7 +155,7 @@ public class FmuHelper {
      * @throws IOException if loading fails
      */
     public static Fmu loadFmu(byte[] fmuBinary) throws IOException {
-        return loadFmu(UUID.randomUUID().toString(), fmuBinary);
+        return loadFmu(IdHelper.uuid(), fmuBinary);
     }
 
 
