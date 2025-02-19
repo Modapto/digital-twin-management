@@ -17,6 +17,7 @@ package eu.modapto.digitaltwinmanagement.controller;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.junit.Assert.assertTrue;
@@ -44,7 +45,6 @@ import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
 import eu.modapto.digitaltwinmanagement.config.TestConfig;
-import eu.modapto.digitaltwinmanagement.controller.util.Constants;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
@@ -75,7 +75,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -136,16 +135,6 @@ public class ModuleControllerTest {
     private static GenericContainer<?> localDockerRegistry;
     private static String localDockerRegistryUrl;
 
-    // Resource paths & files
-    private static final String EMBEDDED_BOUNCING_BALL_FILENAME = "embedded-bouncing-ball.json";
-    private static final String INTERNAL_ADD_FILENAME = "internal-add.json";
-    private static final String INTERNAL_ADD_WITH_MAPPINGS_FILENAME = "internal-add-with-mappings.json";
-    private static final String EXTERNAL_FILENAME = "external.json";
-
-    private static final String PATH_SERVICE_CATALOG_RESPONSE = "service-catalog-response";
-    private static final String PATH_SERVICE_INVOKE = "service-invoke";
-    private static final String PATH_SERVICE_RESULT = "service-result";
-
     // Variables initialized from resources    
     private static String EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD;
     private static String EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT;
@@ -160,24 +149,8 @@ public class ModuleControllerTest {
     private static String EXTERNAL_EXPECTED_RESULT;
     private static String EXTERNAL_CATALOG_RESPONSE;
 
-    private static final String EMBEDDED_SMART_SERVICE_ID = "embedded-1";
-    private static final String INTERNAL_SMART_SERVICE_ID = "internal-1";
-    private static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
-
-    // RegEx
-    private static final String REGEX_LOCATION_HEADER_MODULE = "^/module/(\\d+)$";
-    private static final String REGEX_LOCATION_HEADER_SERVICE = "^/service/(\\d+)$";
-
     // Default AAS model
-    private static final String AAS_ID = "http://example.org/aas/1";
-    private static final String SUBMODEL_ID = "http://example.org/submodel/1";
-    private static final String SUBMODEL_ID_SHORT = "submodel1";
-    private static final String PROPERTY_INT_ID_SHORT = "propertyInt";
-    private static final String PROPERTY_STRING_ID_SHORT = "propertyString";
-    private static final String PROPERTY_DOUBLE_ID_SHORT = "propertyDouble";
 
-    private static final String INTERNAL_SERVICE_IMAGE_NAME = "internal-service-mock";
-    private static final long KAFKA_TIMEOUT_IN_MS = 10000;
     private static DockerClient dockerClient;
 
     private static TestConfig testConfig;
@@ -255,17 +228,17 @@ public class ModuleControllerTest {
     private void initServiceCatalogueMock() throws SerializationException, IOException {
         SERVICE_CATALOG_MOCK.start();
         config.setServiceCatalogueUrl(SERVICE_CATALOG_MOCK.baseUrl());
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", EMBEDDED_SMART_SERVICE_ID)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, EMBEDDED_SMART_SERVICE_ID)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .withBody(EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE)));
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", INTERNAL_SMART_SERVICE_ID)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, INTERNAL_SMART_SERVICE_ID)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                         .withBody(INTERNAL_ADD_CATALOG_RESPONSE)));
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", EXTERNAL_SMART_SERVICE_ID)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, EXTERNAL_SMART_SERVICE_ID)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -289,7 +262,7 @@ public class ModuleControllerTest {
 
         String internalServiceDockerImage = DockerHelper.buildImage(
                 localDockerClient,
-                new File("src/test/resources/container/internal-service-mock/Dockerfile"),
+                new File(INTERNAL_SERVICE_DOCKERFILE),
                 INTERNAL_SERVICE_IMAGE_NAME);
         DockerHelper.publish(localDockerClient, localDockerRegistryUrl, internalServiceDockerImage);
     }
@@ -343,7 +316,7 @@ public class ModuleControllerTest {
                 .type(config.getDeploymentType())
                 .format(DataFormat.JSON)
                 .build();
-        MvcResult result = mockMvc.perform(post("/module")
+        MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload)))
                 .andDo(MockMvcResultHandlers.print())
@@ -359,7 +332,7 @@ public class ModuleControllerTest {
     @Test
     public void testUpdateModule() throws Exception {
         Environment environment = newDefaultEnvironment();
-        MvcResult result = mockMvc.perform(post("/module")
+        MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(
                         ModuleRequestDto.builder()
@@ -380,7 +353,7 @@ public class ModuleControllerTest {
                         .value("new")
                         .valueType(DataTypeDefXsd.STRING)
                         .build());
-        result = mockMvc.perform(put("/module/" + moduleId)
+        result = mockMvc.perform(put(String.format(REST_PATH_MODULE_TEMPLATE, moduleId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(ModuleRequestDto.builder()
                         .aas(asJsonBase64(environment))
@@ -402,7 +375,7 @@ public class ModuleControllerTest {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
-                post(String.format("/module/%d/service", module.getId()))
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -433,7 +406,7 @@ public class ModuleControllerTest {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
-                post(String.format("/module/%d/service", module.getId()))
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -473,7 +446,7 @@ public class ModuleControllerTest {
                 .build());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
-                post(String.format("/module/%d/service", module.getId()))
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -503,7 +476,7 @@ public class ModuleControllerTest {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
-                post(String.format("/module/%d/service", module.getId()))
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -522,7 +495,7 @@ public class ModuleControllerTest {
     @Test
     public void testDeleteService() throws Exception {
         String serviceId = "test-delete-service";
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", serviceId)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, serviceId)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -534,7 +507,7 @@ public class ModuleControllerTest {
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
                         .build());
-        mockMvc.perform(delete(String.format("/service/%d", service.getId())))
+        mockMvc.perform(delete(String.format(REST_PATH_SERVICE_TEMPLATE, service.getId())))
                 .andExpect(status().isNoContent());
         assertThat(smartServiceRepository.count()).isZero();
         assertThat(moduleRepository.findAll()).flatExtracting(Module::getServices).extracting(SmartService::getId).doesNotContain(service.getId());
@@ -544,7 +517,7 @@ public class ModuleControllerTest {
     @Test
     void testDeleteModule() throws Exception {
         String serviceId = "test-delete-module";
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format("/service/%s", serviceId)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, serviceId)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -556,7 +529,7 @@ public class ModuleControllerTest {
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
                         .build());
-        mockMvc.perform(delete(String.format("/module/%d", module.getId())))
+        mockMvc.perform(delete(String.format(REST_PATH_MODULE_TEMPLATE, module.getId())))
                 .andExpect(status().isNoContent());
         assertThat(moduleRepository.count()).isZero();
         assertThat(smartServiceRepository.findAll()).extracting(SmartService::getModule).extracting(Module::getId).doesNotContain(service.getId());
@@ -624,7 +597,7 @@ public class ModuleControllerTest {
         ResponseEntity<String> serviceResponse = RestClient.create(service.getEndpoint())
                 .post()
                 .uri("/invoke/$value")
-                .header(Constants.HTTP_HEADER_MODAPTO_INVOCATION_ID, invocationId)
+                .header(HTTP_HEADER_MODAPTO_INVOCATION_ID, invocationId)
                 .body(payload)
                 .retrieve()
                 .toEntity(String.class);
@@ -724,22 +697,6 @@ public class ModuleControllerTest {
         catch (ReflectiveOperationException e) {
             throw new RuntimeException("error checking common event properties for type " + type.getSimpleName(), e);
         }
-    }
-
-
-    private Optional<Integer> findEventMessage(List<String> messages, EventInfo event) {
-        for (int i = 0; i < messages.size(); i++) {
-            try {
-                if (event.check.test(mapper.readValue(messages.get(i), event.type))) {
-                    return Optional.of(i);
-                }
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-                // ignore
-            }
-        }
-        return Optional.empty();
     }
 
 

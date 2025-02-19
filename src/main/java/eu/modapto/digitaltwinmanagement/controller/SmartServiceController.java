@@ -47,7 +47,7 @@ public class SmartServiceController {
     private SmartServiceService smartServiceService;
 
     @Operation(summary = "Get all smart services", description = "Returns a list of all smart services")
-    @GetMapping("/service")
+    @GetMapping("/services")
     public List<SmartServiceResponseDto> getAllSmartServices() {
         return smartServiceService.getAllSmartServices().stream()
                 .map(SmartServiceMapper::toDto)
@@ -56,7 +56,7 @@ public class SmartServiceController {
 
 
     @Operation(summary = "Get smart service by ID", description = "Returns the details of an existing smart service by its ID")
-    @GetMapping("/service/{serviceId}")
+    @GetMapping("/services/{serviceId}")
     public SmartServiceResponseDto getSmartService(@PathVariable Long serviceId) {
         return SmartServiceMapper.toDto(smartServiceService.getSmartServiceById(serviceId));
     }
@@ -64,17 +64,17 @@ public class SmartServiceController {
 
     @Operation(summary = "Create a new smart service", description = "Creates a new smart service withing a service based on the provided details")
     @ApiResponse(responseCode = "200", description = "Smart service created successfully")
-    @PostMapping("/module/{moduleId}/service")
+    @PostMapping("/modules/{moduleId}/services")
     public ResponseEntity<SmartServiceResponseDto> createService(@PathVariable Long moduleId, @RequestBody SmartServiceRequestDto request) throws Exception {
         SmartServiceResponseDto result = SmartServiceMapper.toDto(smartServiceService.addServiceToModule(moduleId, request));
         return ResponseEntity
-                .created(URI.create("/service/" + result.getId()))
+                .created(URI.create("/services/" + result.getId()))
                 .body(result);
     }
 
 
     @Operation(summary = "Get services for a module", description = "Returns a list of services associated with the specified module")
-    @GetMapping("/module/{moduleId}/service")
+    @GetMapping("/modules/{moduleId}/services")
     public List<SmartServiceResponseDto> getServicesForModule(@PathVariable Long moduleId) {
         return moduleService.getModuleById(moduleId).getServices().stream()
                 .map(SmartServiceMapper::toDto)
@@ -84,7 +84,7 @@ public class SmartServiceController {
 
     @Operation(summary = "Delete a service from a module", description = "Deletes a service by its ID from the specified module")
     @ApiResponse(responseCode = "204", description = "Service deleted from module successfully")
-    @DeleteMapping("/module/{moduleId}/service/{serviceId}")
+    @DeleteMapping("/modules/{moduleId}/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteServiceFromModule(@PathVariable Long moduleId, @PathVariable Long serviceId) throws Exception {
         smartServiceService.deleteServiceFromModule(moduleId, serviceId);
@@ -93,7 +93,7 @@ public class SmartServiceController {
 
     @Operation(summary = "Delete a smart service", description = "Deletes a smart service by its ID")
     @ApiResponse(responseCode = "204", description = "Smart service deleted successfully")
-    @DeleteMapping("/service/{serviceId}")
+    @DeleteMapping("/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSmartService(@PathVariable Long serviceId) throws Exception {
         smartServiceService.deleteService(serviceId);

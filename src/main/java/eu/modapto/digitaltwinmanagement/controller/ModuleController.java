@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 
 @RestController
-@RequestMapping("/module")
+@RequestMapping("/modules")
 @Tag(name = "Module Operations", description = "Operations related to module management")
 public class ModuleController {
 
@@ -56,7 +56,7 @@ public class ModuleController {
         module = moduleService.createModule(module);
         ModuleResponseDto result = ModuleMapper.toDto(module);
         return ResponseEntity
-                .created(URI.create("/module/" + result.getId()))
+                .created(URI.create("/modules/" + result.getId()))
                 .body(result);
     }
 

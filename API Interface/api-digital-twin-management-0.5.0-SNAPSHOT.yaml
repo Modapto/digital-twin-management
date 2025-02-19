@@ -12,7 +12,7 @@ tags:
 - name: Module Operations
   description: Operations related to module management
 paths:
-  /module/{moduleId}:
+  /modules/{moduleId}:
     get:
       tags:
       - Module Operations
@@ -75,7 +75,7 @@ paths:
       responses:
         "204":
           description: Module deleted successfully
-  /module:
+  /modules:
     get:
       tags:
       - Module Operations
@@ -110,7 +110,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleResponse"
-  /module/{moduleId}/service:
+  /modules/{moduleId}/services:
     get:
       tags:
       - Smart Service Operations
@@ -160,7 +160,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SmartServiceResponse"
-  /service:
+  /services:
     get:
       tags:
       - Smart Service Operations
@@ -176,7 +176,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SmartServiceResponse"
-  /service/{serviceId}:
+  /services/{serviceId}:
     get:
       tags:
       - Smart Service Operations
@@ -213,7 +213,7 @@ paths:
       responses:
         "204":
           description: Smart service deleted successfully
-  /module/{moduleId}/details:
+  /modules/{moduleId}/details:
     get:
       tags:
       - Module Operations
@@ -234,7 +234,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleDetailsResponse"
-  /module/{moduleId}/service/{serviceId}:
+  /modules/{moduleId}/services/{serviceId}:
     delete:
       tags:
       - Smart Service Operations
@@ -349,10 +349,10 @@ components:
     EmbeddedDataSpecification:
       type: object
       properties:
-        dataSpecificationContent:
-          $ref: "#/components/schemas/DataSpecificationContent"
         dataSpecification:
           $ref: "#/components/schemas/Reference"
+        dataSpecificationContent:
+          $ref: "#/components/schemas/DataSpecificationContent"
     Extension:
       type: object
       properties:
@@ -397,12 +397,12 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
+        semanticId:
+          $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:
             $ref: "#/components/schemas/Reference"
-        semanticId:
-          $ref: "#/components/schemas/Reference"
     Key:
       type: object
       properties:
@@ -470,6 +470,12 @@ components:
           type: string
         valueId:
           $ref: "#/components/schemas/Reference"
+        kind:
+          type: string
+          enum:
+          - CONCEPT_QUALIFIER
+          - TEMPLATE_QUALIFIER
+          - VALUE_QUALIFIER
         valueType:
           type: string
           enum:
@@ -503,18 +509,12 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        kind:
-          type: string
-          enum:
-          - CONCEPT_QUALIFIER
-          - TEMPLATE_QUALIFIER
-          - VALUE_QUALIFIER
+        semanticId:
+          $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:
             $ref: "#/components/schemas/Reference"
-        semanticId:
-          $ref: "#/components/schemas/Reference"
     Reference:
       type: object
       properties:
@@ -591,12 +591,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Extension"
+        semanticId:
+          $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:
             $ref: "#/components/schemas/Reference"
-        semanticId:
-          $ref: "#/components/schemas/Reference"
         qualifiers:
           type: array
           items:

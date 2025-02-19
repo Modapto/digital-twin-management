@@ -119,7 +119,7 @@ public class SmartServiceService {
     private SmartService getServiceDetails(String serviceCatalogId) {
         SmartService result = RestClient.create(config.getServiceCatalogueUrl())
                 .get()
-                .uri("/service/{serviceId}", serviceCatalogId)
+                .uri("/services/{serviceId}", serviceCatalogId)
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
                         return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
