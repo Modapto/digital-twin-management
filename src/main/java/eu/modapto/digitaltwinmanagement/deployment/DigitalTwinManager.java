@@ -37,7 +37,6 @@ import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
-import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.smartservice.embedded.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
@@ -201,7 +200,6 @@ public class DigitalTwinManager {
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
         EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         for (var service: module.getServices()) {
-            validateServiceName(service);
             Submodel submodel = getOrCreateModaptoSubmodel(actualModel);
             Operation operation;
             if (service instanceof EmbeddedSmartService embedded) {
@@ -355,16 +353,6 @@ public class DigitalTwinManager {
         module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
         for (var service: module.getServices()) {
             service.setOperationEndpoint(module.getEndpoint() + service.getOperationEndpoint());
-        }
-    }
-
-
-    private void validateServiceName(SmartService service) {
-        if (Objects.isNull(service)
-                || Objects.isNull(service.getName())
-                || service.getName().length() > 128
-                || !service.getName().matches(SmartServiceRequestDto.NAME_REGEX)) {
-            throw new IllegalArgumentException(String.format("invalid service name - must match regex '%s' and be max. 128 characters long", SmartServiceRequestDto.NAME_REGEX));
         }
     }
 
