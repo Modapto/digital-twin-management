@@ -37,17 +37,19 @@ import org.springframework.stereotype.Component;
 public class KafkaBridge {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaBridge.class);
+    private final KafkaConfig kafkaConfig;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper mapper;
     private BlockingQueue<AbstractEvent> eventQueue;
     private ExecutorService executorService;
 
     @Autowired
-    private KafkaConfig kafkaConfig;
+    public KafkaBridge(KafkaConfig kafkaConfig, KafkaTemplate<String, String> kafkaTemplate, ObjectMapper mapper) {
+        this.kafkaConfig = kafkaConfig;
+        this.kafkaTemplate = kafkaTemplate;
+        this.mapper = mapper;
+    }
 
-    @Autowired
-    private KafkaTemplate<String, String> kafkaTemplate;
-
-    @Autowired
-    private ObjectMapper mapper;
 
     @PostConstruct
     public void init() {
@@ -59,7 +61,7 @@ public class KafkaBridge {
     }
 
 
-    public void publish(AbstractEvent event) {
+    public void publish(AbstractEvent<?> event) {
         if (!eventQueue.offer(event)) {
             LOGGER.error("Failed to add event to event queue");
         }
@@ -67,7 +69,7 @@ public class KafkaBridge {
     }
 
 
-    private void publishToKafka(AbstractEvent event) {
+    private void publishToKafka(AbstractEvent<?> event) {
         try {
             kafkaTemplate.send(event.getTopic(), mapper.writeValueAsString(event));
             LOGGER.trace("event published on Kafka (type: {})", event.getClass().getSimpleName());

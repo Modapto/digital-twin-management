@@ -27,6 +27,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper.ContainerInfo;
@@ -78,7 +79,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
 
     @Override
-    public void start() throws Exception {
+    public void start() {
         ensureDockerAvailable();
         if (running) {
             return;
@@ -108,7 +109,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
 
     @Override
-    public void stop() throws IOException {
+    public void stop() {
         if (!running) {
             return;
         }
@@ -141,7 +142,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     private void ensureDockerAvailable() {
         if (!dockerAvailable) {
-            throw new RuntimeException("Deployment via docker not possible");
+            throw new DigitalTwinException("Deployment via docker not possible");
         }
     }
 
@@ -188,8 +189,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         }
         try {
             Path hostDir = Path.of(dockerConfig.getTmpDirHostMapping());
-            File result1 = new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
-            return result1;
+            return new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
         }
         catch (InvalidPathException e) {
             LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", dockerConfig.getTmpDirHostMapping(), e);

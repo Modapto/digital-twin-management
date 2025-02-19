@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
@@ -39,7 +40,7 @@ public class ElementValueMapSerializer extends JsonSerializer<Map<String, Elemen
             generator.writeRawValue(serializer.write(data));
         }
         catch (SerializationException | UnsupportedContentModifierException e) {
-            throw new RuntimeException(String.format("failed to serialize List<SubmodelElement> as valueOnly (reason: %s", e.getMessage()), e);
+            throw new JsonMappingException(generator, String.format("Failed to serialize List<SubmodelElement> as valueOnly (reason: %s)", e.getMessage()), e);
         }
     }
 }

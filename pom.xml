@@ -344,8 +344,7 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
-                        <!-- TODO change to 'compile' in future -->
-                        <phase>install</phase>
+                        <phase>compile</phase>
                     </execution>
                 </executions>
             </plugin>

@@ -45,8 +45,13 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Module Operations", description = "Operations related to module management")
 public class ModuleController {
 
+    private final ModuleService moduleService;
+
     @Autowired
-    private ModuleService moduleService;
+    public ModuleController(ModuleService moduleService) {
+        this.moduleService = moduleService;
+    }
+
 
     @Operation(summary = "Create a new module", description = "Creates a new module based on the provided details")
     @ApiResponse(responseCode = "201", description = "Module created successfully")

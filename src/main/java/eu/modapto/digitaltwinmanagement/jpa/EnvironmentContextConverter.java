@@ -29,7 +29,7 @@ public class EnvironmentContextConverter implements AttributeConverter<Environme
     @Override
     public byte[] convertToDatabaseColumn(EnvironmentContext environmentContext) {
         if (Objects.isNull(environmentContext)) {
-            return null;
+            return new byte[0];
         }
         try {
             return EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(environmentContext);

@@ -30,7 +30,6 @@ import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -45,20 +44,24 @@ public class SmartServiceService {
 
     private static final Random random = new Random();
 
-    @Autowired
-    private DigitalTwinManagementConfig config;
+    private final DigitalTwinManagementConfig config;
+    private final SmartServiceRepository smartServiceRepository;
+    private final ModuleRepository moduleRepository;
+    private final ObjectMapper mapper;
+    private final DigitalTwinManager dtManager;
 
-    @Autowired
-    private SmartServiceRepository smartServiceRepository;
+    public SmartServiceService(DigitalTwinManagementConfig config,
+            SmartServiceRepository smartServiceRepository,
+            ModuleRepository moduleRepository,
+            ObjectMapper mapper,
+            DigitalTwinManager dtManager) {
+        this.config = config;
+        this.smartServiceRepository = smartServiceRepository;
+        this.moduleRepository = moduleRepository;
+        this.mapper = mapper;
+        this.dtManager = dtManager;
+    }
 
-    @Autowired
-    private ModuleRepository moduleRepository;
-
-    @Autowired
-    private ObjectMapper mapper;
-
-    @Autowired
-    private DigitalTwinManager dtManager;
 
     public List<SmartService> getAllSmartServices() {
         return smartServiceRepository.findAll();

@@ -24,7 +24,7 @@ public abstract class DigitalTwinConnector {
 
     protected DigitalTwinConfig config;
 
-    protected DigitalTwinConnector(DigitalTwinConfig config) throws Exception {
+    protected DigitalTwinConnector(DigitalTwinConfig config) {
         this.config = config;
     }
 
@@ -56,8 +56,8 @@ public abstract class DigitalTwinConnector {
     }
 
 
-    public abstract void start() throws Exception;
+    public abstract void start();
 
 
-    public abstract void stop() throws Exception;
+    public abstract void stop();
 }

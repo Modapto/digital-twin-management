@@ -19,6 +19,10 @@ import java.util.UUID;
 
 
 public class IdHelper {
+
+    private IdHelper() {}
+
+
     public static String uuid() {
         return UUID.randomUUID().toString();
     }

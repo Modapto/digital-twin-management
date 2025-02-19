@@ -21,6 +21,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
@@ -32,13 +33,18 @@ import org.springframework.stereotype.Component;
 @Converter(autoApply = false)
 public class ListOfSubmodelElementConverter implements AttributeConverter<List<SubmodelElement>, byte[]> {
 
+    private final ObjectMapper mapper;
+
     @Autowired
-    private ObjectMapper mapper;
+    public ListOfSubmodelElementConverter(ObjectMapper mapper) {
+        this.mapper = mapper;
+    }
+
 
     @Override
     public byte[] convertToDatabaseColumn(List<SubmodelElement> submodelElements) {
         if (Objects.isNull(submodelElements)) {
-            return null;
+            return new byte[0];
         }
         try {
             return mapper.writerFor(mapper.getTypeFactory().constructCollectionType(List.class, SubmodelElement.class))
@@ -54,7 +60,7 @@ public class ListOfSubmodelElementConverter implements AttributeConverter<List<S
     @Override
     public List<SubmodelElement> convertToEntityAttribute(byte[] data) {
         if (Objects.isNull(data)) {
-            return null;
+            return Collections.emptyList();
         }
         try (ByteArrayInputStream temp = new ByteArrayInputStream(data)) {
             return mapper.readValue(new InputStreamReader(temp, StandardCharsets.UTF_8),
