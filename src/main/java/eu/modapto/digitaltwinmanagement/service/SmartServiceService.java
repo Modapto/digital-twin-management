@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -118,15 +120,16 @@ public class SmartServiceService {
 
     private SmartService getServiceDetails(String serviceCatalogId) {
         SmartService result = RestClient.create(config.getServiceCatalogueUrl())
-                .get()
-                .uri("/services/{serviceId}", serviceCatalogId)
+                .post()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(String.format("{ \"id\": { \"value\": \"%s\" } }", serviceCatalogId))
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
                         return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
                     }
                     throw new ResponseStatusException(
                             HttpStatus.BAD_GATEWAY,
-                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s", config.getServiceCatalogueUrl()));
+                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s)", config.getServiceCatalogueUrl()));
                 });
         result.setServiceCatalogId(serviceCatalogId);
         return result;
