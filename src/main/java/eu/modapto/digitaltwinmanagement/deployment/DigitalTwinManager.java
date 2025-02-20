@@ -102,13 +102,15 @@ public class DigitalTwinManager {
     private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
     @Autowired
-    public DigitalTwinManager(DigitalTwinManagementConfig config, DigitalTwinConnectorFactory connectorFactory, DigitalTwinEventForwarder eventForwarder,
+    public DigitalTwinManager(
+            DigitalTwinManagementConfig config,
+            DigitalTwinConnectorFactory connectorFactory,
+            DigitalTwinEventForwarder eventForwarder,
             DigitalTwinDeploymentDockerConfig dockerConfig) {
         this.config = config;
         this.connectorFactory = connectorFactory;
         this.eventForwarder = eventForwarder;
         this.dockerConfig = dockerConfig;
-
     }
 
 

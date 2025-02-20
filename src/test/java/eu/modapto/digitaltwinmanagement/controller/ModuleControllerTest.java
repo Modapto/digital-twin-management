@@ -39,6 +39,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.PortHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
@@ -70,7 +71,6 @@ import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
@@ -114,7 +114,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
@@ -128,8 +129,7 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-@ContextConfiguration
-public class ModuleControllerTest {
+class ModuleControllerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ModuleControllerTest.class);
     private static final WireMockServer SERVICE_CATALOG_MOCK = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
@@ -195,6 +195,12 @@ public class ModuleControllerTest {
     private DeploymentType dtDeplyomentType;
 
     private static boolean initialized = false;
+
+    @DynamicPropertySource
+    static void dynamicProperties(DynamicPropertyRegistry registry) {
+        registry.add("dt-management.events.mqtt.port", () -> PortHelper.findFreePort());
+    }
+
 
     @BeforeEach
     private void init() throws IOException, Exception {
@@ -309,7 +315,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testCreateModule() throws Exception {
+    void testCreateModule() throws Exception {
         ModuleRequestDto payload = ModuleRequestDto.builder()
                 .aas(asJsonBase64(newDefaultEnvironment()))
                 .type(config.getDeploymentType())
@@ -329,7 +335,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testUpdateModule() throws Exception {
+    void testUpdateModule() throws Exception {
         Environment environment = newDefaultEnvironment();
         MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -370,7 +376,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testCreateEmbeddedService() throws Exception {
+    void testCreateEmbeddedService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
@@ -387,16 +393,6 @@ public class ModuleControllerTest {
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
         assertInvokeServiceResponse(actual, EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD, EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT);
-    }
-
-
-    public static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Unable to find free port", e);
-        }
     }
 
 
@@ -422,7 +418,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testCreateInternalServiceWithArgumentMappings() throws Exception {
+    void testCreateInternalServiceWithArgumentMappings() throws Exception {
         String dataReferenceIdShort = "myDefaultValue";
         String input2DefaultValue = "2.03";
         Environment environment = newDefaultEnvironment();

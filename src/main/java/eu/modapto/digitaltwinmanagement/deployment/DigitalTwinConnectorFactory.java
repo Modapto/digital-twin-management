@@ -17,14 +17,12 @@ package eu.modapto.digitaltwinmanagement.deployment;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 
 @Component
 public class DigitalTwinConnectorFactory {
 
-    @Value("${dt.deployment.type.default:DOCKER}")
     private static final DeploymentType DEFAULT_DEPLOYMENT_TYPE = DeploymentType.DOCKER;
 
     private final DigitalTwinDeploymentDockerConfig dockerConfig;

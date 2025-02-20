@@ -63,7 +63,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private boolean running = false;
     private boolean dockerAvailable = false;
 
-    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DigitalTwinDeploymentDockerConfig dockerConfig) throws Exception {
+    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DigitalTwinDeploymentDockerConfig dockerConfig) {
         super(config);
         this.dockerConfig = dockerConfig;
         try {
@@ -121,7 +121,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     }
 
 
-    private void initContainer() throws IOException, SerializationException {
+    private void initContainer() {
         initTempDirectoryAndFiles();
         writeConfigFile();
         writeModelFile();
@@ -129,14 +129,19 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     }
 
 
-    private void initTempDirectoryAndFiles() throws IOException {
-        if (!Files.exists(TMP_DIR)) {
-            Files.createDirectories(TMP_DIR);
+    private void initTempDirectoryAndFiles() {
+        try {
+            if (!Files.exists(TMP_DIR)) {
+                Files.createDirectories(TMP_DIR);
+            }
+            contextPath = Files.createTempDirectory(TMP_DIR, "dt-");
+            modelFile = contextPath.resolve("model.json").toFile();
+            configFile = contextPath.resolve("config.json").toFile();
+            fileStoragePath = contextPath.resolve("file-storage");
         }
-        contextPath = Files.createTempDirectory(TMP_DIR, "dt-");
-        modelFile = contextPath.resolve("model.json").toFile();
-        configFile = contextPath.resolve("config.json").toFile();
-        fileStoragePath = contextPath.resolve("file-storage");
+        catch (IOException e) {
+            throw new DigitalTwinException("failed to initialize temp directory and files", e);
+        }
     }
 
 
@@ -147,7 +152,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     }
 
 
-    private void writeConfigFile() throws IOException {
+    private void writeConfigFile() {
         ServiceConfig serviceConfig = ServiceConfig.builder()
                 .endpoint(getHttpEndpointConfig(CONTAINER_HTTP_PORT_INTERNAL))
                 .messageBus(getMessageBusMqttConfig())
@@ -158,27 +163,42 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .existingDataPath(CONTAINER_FILE_STORGE_PATH)
                         .build())
                 .build();
-        new ObjectMapper()
-                .enable(SerializationFeature.INDENT_OUTPUT)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-                .writeValue(configFile, serviceConfig);
+        try {
+            new ObjectMapper()
+                    .enable(SerializationFeature.INDENT_OUTPUT)
+                    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+                    .writeValue(configFile, serviceConfig);
+        }
+        catch (IOException e) {
+            throw new DigitalTwinException("failed to serialize FA³ST config file", e);
+        }
     }
 
 
-    private void writeModelFile() throws IOException, SerializationException {
-        EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, config.getEnvironmentContext());
+    private void writeModelFile() {
+        try {
+            EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, config.getEnvironmentContext());
+        }
+        catch (SerializationException | IOException e) {
+            throw new DigitalTwinException("failed to serialize AAS model to file", e);
+        }
     }
 
 
-    private void writeAuxiliaryFiles() throws IOException, SerializationException {
-        Files.createDirectory(fileStoragePath);
-        for (var file: config.getEnvironmentContext().getFiles()) {
-            Files.write(
-                    fileStoragePath.resolve(file.getPath().startsWith("/")
-                            ? file.getPath().substring(1)
-                            : file.getPath()),
-                    file.getFileContent());
+    private void writeAuxiliaryFiles() {
+        try {
+            Files.createDirectory(fileStoragePath);
+            for (var file: config.getEnvironmentContext().getFiles()) {
+                Files.write(
+                        fileStoragePath.resolve(file.getPath().startsWith("/")
+                                ? file.getPath().substring(1)
+                                : file.getPath()),
+                        file.getFileContent());
+            }
+        }
+        catch (IOException e) {
+            throw new DigitalTwinException("failed to write auxiliary files", e);
         }
     }
 

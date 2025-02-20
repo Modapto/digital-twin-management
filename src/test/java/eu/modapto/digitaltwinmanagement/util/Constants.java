@@ -14,6 +14,13 @@
  */
 package eu.modapto.digitaltwinmanagement.util;
 
+import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
+import java.time.LocalDateTime;
+
+
 public class Constants {
     // Resource paths & files
     public static final String EMBEDDED_BOUNCING_BALL_FILENAME = "embedded-bouncing-ball.json";
@@ -49,6 +56,35 @@ public class Constants {
     // Docker
     public static final String INTERNAL_SERVICE_IMAGE_NAME = "internal-service-mock";
     public static final String INTERNAL_SERVICE_DOCKERFILE = "src/test/resources/container/internal-service-mock/Dockerfile";
+
+    // Events
+    public static final String PATH_EVENT = "event";
+    public static final String EVENT_MODULE_CREATED_FILENAME = "module-created.json";
+    public static final String EVENT_MODULE_DELETED_FILENAME = "module-deleted.json";
+    public static final String EVENT_MODULE_UPDATED_FILENAME = "module-updated.json";
+    public static final String EVENT_SERVICE_INVOKED_FILENAME = "service-invoked.json";
+    public static final String EVENT_SERVICE_FINISHED_FILENAME = "service-finished.json";
+
+    public static final ModuleCreatedEvent EVENT_MODULE_CREATED = ModuleCreatedEvent.builder()
+            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
+            .payload(ModuleDetailsPayload.builder()
+                    .moduleId(1)
+                    .endpoint("http://example.org/api/v3.0")
+                    .build())
+            .build();
+
+    public static final ModuleDeletedEvent EVENT_MODULE_DELETED = ModuleDeletedEvent.builder()
+            .moduleId(1)
+            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
+            .build();
+
+    public static final ModuleUpdatedEvent EVENT_MODULE_UPDATED = ModuleUpdatedEvent.builder()
+            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
+            .payload(ModuleDetailsPayload.builder()
+                    .moduleId(1)
+                    .endpoint("http://example.org/api/v3.0")
+                    .build())
+            .build();
 
     // Other
     public static final long KAFKA_TIMEOUT_IN_MS = 10000;
