@@ -21,7 +21,6 @@ import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
-import eu.modapto.digitaltwinmanagement.model.request.GetServiceDetailsRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
@@ -129,10 +128,8 @@ public class SmartServiceService {
 
     private SmartService getServiceDetails(String serviceCatalogId) {
         SmartService result = RestClient.create(config.getServiceCatalogueHost())
-                .post()
-                .uri(config.getServiceCataloguePath())
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(new GetServiceDetailsRequestDto(serviceCatalogId))
+                .get()
+                .uri(String.format(config.getServiceCataloguePath(), serviceCatalogId))
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
                         return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();

@@ -59,7 +59,6 @@ import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
-import eu.modapto.digitaltwinmanagement.model.request.GetServiceDetailsRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
@@ -242,8 +241,7 @@ class ModuleControllerTest {
 
 
     private void mockServiceInCatalog(String serviceId, String responsePayload) throws JsonProcessingException {
-        SERVICE_CATALOG_MOCK.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlEqualTo(config.getServiceCataloguePath()))
-                .withRequestBody(equalToJson(mapper.writeValueAsString(new GetServiceDetailsRequestDto(serviceId))))
+        SERVICE_CATALOG_MOCK.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo(String.format(config.getServiceCataloguePath(), serviceId)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
