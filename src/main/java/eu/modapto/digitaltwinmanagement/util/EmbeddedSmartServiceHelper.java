@@ -69,8 +69,6 @@ public class EmbeddedSmartServiceHelper {
 
     private static final String SMC_SIMULATION_MODELS_PREFIX = "SimulationModel_";
 
-    private EmbeddedSmartServiceHelper() {}
-
     private static final OperationVariable ARG_CURRENT_TIME = new DefaultOperationVariable.Builder()
             .value(new DefaultProperty.Builder()
                     .idShort(ARG_CURRENT_TIME_ID)
@@ -103,6 +101,9 @@ public class EmbeddedSmartServiceHelper {
                     .valueType(DataTypeDefXsd.INTEGER)
                     .build())
             .build();
+
+    private EmbeddedSmartServiceHelper() {}
+
 
     private static void initializeOperation(Operation operation, EmbeddedSmartService service) {
         try {
@@ -227,11 +228,6 @@ public class EmbeddedSmartServiceHelper {
 
     private static String getFmuFilename(EmbeddedSmartService service) {
         return "/" + service.getName() + ".fmu";
-    }
-
-
-    private static String randomId() {
-        return "id-" + IdHelper.uuidAlphanumeric();
     }
 
 

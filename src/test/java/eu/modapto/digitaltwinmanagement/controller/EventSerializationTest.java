@@ -14,17 +14,15 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
+import static eu.modapto.digitaltwinmanagement.util.Constants.*;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.fraunhofer.iosb.ilt.faaast.service.model.exception.ValueFormatException;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.Datatype;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.PropertyValue;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.SubmodelElementCollectionValue;
-import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
-import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
-import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
-import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceFinishedPayload;
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceInvokedPayload;
 import java.io.IOException;
@@ -40,41 +38,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.test.context.ContextConfiguration;
 
 
 @SpringBootTest
-@ContextConfiguration
 class EventSerializationTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventSerializationTest.class);
-    private static final String PATH_EVENT = "event";
-    private static final String EVENT_MODULE_CREATED_FILENAME = "module-created.json";
-    private static final String EVENT_MODULE_DELETED_FILENAME = "module-deleted.json";
-    private static final String EVENT_MODULE_UPDATED_FILENAME = "module-updated.json";
-    private static final String EVENT_SERVICE_INVOKED_FILENAME = "service-invoked.json";
-    private static final String EVENT_SERVICE_FINISHED_FILENAME = "service-finished.json";
 
-    private static final ModuleCreatedEvent EVENT_MODULE_CREATED = ModuleCreatedEvent.builder()
-            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
-            .payload(ModuleDetailsPayload.builder()
-                    .moduleId(1)
-                    .endpoint("http://example.org/api/v3.0")
-                    .build())
-            .build();
-
-    private static final ModuleDeletedEvent EVENT_MODULE_DELETED = ModuleDeletedEvent.builder()
-            .moduleId(1)
-            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
-            .build();
-
-    private static final ModuleUpdatedEvent EVENT_MODULE_UPDATED = ModuleUpdatedEvent.builder()
-            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
-            .payload(ModuleDetailsPayload.builder()
-                    .moduleId(1)
-                    .endpoint("http://example.org/api/v3.0")
-                    .build())
-            .build();
     private static SmartServiceInvokedEvent EVENT_SERVICE_INVOKED;
     private static SmartServiceFinishedEvent EVENT_SERVICE_FINISHED;
 
