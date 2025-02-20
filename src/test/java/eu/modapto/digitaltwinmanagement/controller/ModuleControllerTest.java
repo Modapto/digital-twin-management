@@ -129,7 +129,7 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class ModuleControllerTest {
+class ModuleControllerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ModuleControllerTest.class);
     private static final WireMockServer SERVICE_CATALOG_MOCK = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
