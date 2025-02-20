@@ -443,13 +443,31 @@ public class DigitalTwinManager {
 
 
     private AssetConnectionConfig createAssetConnection(Reference operation, RestBasedSmartService service, int port) throws MalformedURLException {
-        Address address = getModuleToServiceAddress(service, port);
+        String baseUrl;
+        String path;
+        DeploymentType moduleType = service.getModule().getType();
+        if (service instanceof InternalSmartService internalService) {
+            if (moduleType == DeploymentType.DOCKER) {
+                baseUrl = String.format(DockerHelper.getContainerName(internalService));
+                path = internalService.getHttpEndpoint();
+            }
+            else {
+                baseUrl = String.format("http://%s:%s", LOCALHOST, port);
+                path = internalService.getHttpEndpoint();
+            }
+        }
+        else {
+            URL url = new URL(service.getHttpEndpoint());
+            baseUrl = url.getProtocol() + "://" + url.getHost() + (url.getPort() != -1 ? ":" + url.getPort() : "");
+            path = url.getFile();
+        }
+        LOGGER.debug("Creating asset connection with baseUrl={} and path={}", baseUrl, path);
         return HttpAssetConnectionConfig.builder()
-                .baseUrl(String.format("http://%s:%d", address.getHost(), address.getPort()))
+                .baseUrl(baseUrl)
                 .operationProvider(operation, HttpOperationProviderConfig.builder()
                         .format("JSON")
                         .method(service.getMethod())
-                        .path(service.getHttpEndpoint())
+                        .path(path)
                         .headers(service.getHeaders())
                         .template(service.getPayload())
                         .queries(service.getOutputMapping())
