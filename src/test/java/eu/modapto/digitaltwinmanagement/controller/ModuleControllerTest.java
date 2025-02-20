@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.controller;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 import static org.assertj.core.api.Assertions.assertThat;
