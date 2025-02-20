@@ -24,7 +24,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,11 +39,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Smart Service Operations", description = "Operations related to smart service management")
 public class SmartServiceController {
 
-    @Autowired
-    private ModuleService moduleService;
+    private final ModuleService moduleService;
+    private final SmartServiceService smartServiceService;
 
-    @Autowired
-    private SmartServiceService smartServiceService;
+    public SmartServiceController(ModuleService moduleService, SmartServiceService smartServiceService) {
+        this.moduleService = moduleService;
+        this.smartServiceService = smartServiceService;
+    }
+
 
     @Operation(summary = "Get all smart services", description = "Returns a list of all smart services")
     @GetMapping("/services")

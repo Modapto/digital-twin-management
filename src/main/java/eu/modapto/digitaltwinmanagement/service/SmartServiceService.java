@@ -15,12 +15,13 @@
 package eu.modapto.digitaltwinmanagement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.model.request.GetServiceDetailsRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
@@ -28,7 +29,7 @@ import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
 import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Random;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -41,20 +42,26 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class SmartServiceService {
 
-    @Autowired
-    private DigitalTwinManagementConfig config;
+    private static final Random random = new Random();
 
-    @Autowired
-    private SmartServiceRepository smartServiceRepository;
+    private final DigitalTwinManagementConfig config;
+    private final SmartServiceRepository smartServiceRepository;
+    private final ModuleRepository moduleRepository;
+    private final ObjectMapper mapper;
+    private final DigitalTwinManager dtManager;
 
-    @Autowired
-    private ModuleRepository moduleRepository;
+    public SmartServiceService(DigitalTwinManagementConfig config,
+            SmartServiceRepository smartServiceRepository,
+            ModuleRepository moduleRepository,
+            ObjectMapper mapper,
+            DigitalTwinManager dtManager) {
+        this.config = config;
+        this.smartServiceRepository = smartServiceRepository;
+        this.moduleRepository = moduleRepository;
+        this.mapper = mapper;
+        this.dtManager = dtManager;
+    }
 
-    @Autowired
-    private ObjectMapper mapper;
-
-    @Autowired
-    private DigitalTwinManager dtManager;
 
     public List<SmartService> getAllSmartServices() {
         return smartServiceRepository.findAll();
@@ -84,12 +91,83 @@ public class SmartServiceService {
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
         SmartService service = getServiceDetails(request.getServiceCatalogId());
         applyRequestOverrides(service, request);
+        ensureValidServicename(service);
         service.setModule(module);
         smartServiceRepository.save(service);
         module.getServices().add(service);
         dtManager.update(module);
         moduleRepository.save(module);
         return module.getServiceById(service.getId());
+    }
+
+
+    public void deleteService(Long serviceId) throws Exception {
+        deleteService(smartServiceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId))));
+
+    }
+
+
+    public void deleteServiceFromModule(Long moduleId, Long serviceId) throws Exception {
+        SmartService service = smartServiceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId)));
+
+        if (!service.getModule().getId().equals(moduleId)) {
+            throw new ResourceNotFoundException("Service does not belong to the specified module");
+        }
+        deleteService(service);
+    }
+
+
+    private void deleteService(SmartService service) throws Exception {
+        service.getModule().getServices().removeIf(x -> Objects.equals(x.getId(), service.getId()));
+        dtManager.update(service.getModule());
+        moduleRepository.save(service.getModule());
+        smartServiceRepository.delete(service);
+    }
+
+
+    private SmartService getServiceDetails(String serviceCatalogId) {
+        SmartService result = RestClient.create(config.getServiceCatalogueHost())
+                .post()
+                .uri(config.getServiceCataloguePath())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new GetServiceDetailsRequestDto(serviceCatalogId))
+                .exchange((request, response) -> {
+                    if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
+                        return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
+                    }
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_GATEWAY,
+                            String.format(
+                                    "Bad Gateway: Service Catalog is unavailable (host: %s, path: %s)",
+                                    config.getServiceCatalogueHost(),
+                                    config.getServiceCataloguePath()));
+                });
+        result.setServiceCatalogId(serviceCatalogId);
+        return result;
+    }
+
+
+    private void ensureValidServicename(SmartService service) {
+        String name = service.getName();
+        if (StringHelper.isBlank(name)) {
+            name = randomLowercaseChar() + IdHelper.uuidAlphanumeric();
+        }
+        else {
+            name = name.replace(" ", "_")
+                    .replaceAll("[^a-zA-Z0-9_]", "");
+            if (!name.matches("^[a-zA-Z].*")) {
+                name = randomLowercaseChar() + name;
+            }
+            if (name.length() > 128) {
+                name = name.substring(0, 128);
+            }
+            if (name.length() < 5) {
+                name = name + "_" + IdHelper.uuidAlphanumeric8();
+            }
+        }
+        service.setName(name);
     }
 
 
@@ -118,46 +196,8 @@ public class SmartServiceService {
     }
 
 
-    private SmartService getServiceDetails(String serviceCatalogId) {
-        SmartService result = RestClient.create(config.getServiceCatalogueUrl())
-                .post()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(String.format("{ \"id\": { \"value\": \"%s\" } }", serviceCatalogId))
-                .exchange((request, response) -> {
-                    if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
-                        return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();
-                    }
-                    throw new ResponseStatusException(
-                            HttpStatus.BAD_GATEWAY,
-                            String.format("Bad Gateway: Service Catalog is unavailable (endpoint: %s)", config.getServiceCatalogueUrl()));
-                });
-        result.setServiceCatalogId(serviceCatalogId);
-        return result;
+    private static char randomLowercaseChar() {
+        return (char) (random.nextInt(26) + 'a');
     }
 
-
-    public void deleteService(Long serviceId) throws Exception {
-        deleteService(smartServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId))));
-
-    }
-
-
-    private void deleteService(SmartService service) throws Exception {
-        service.getModule().getServices().removeIf(x -> Objects.equals(x.getId(), service.getId()));
-        dtManager.update(service.getModule());
-        moduleRepository.save(service.getModule());
-        smartServiceRepository.delete(service);
-    }
-
-
-    public void deleteServiceFromModule(Long moduleId, Long serviceId) throws Exception {
-        SmartService service = smartServiceRepository.findById(serviceId)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId)));
-
-        if (!service.getModule().getId().equals(moduleId)) {
-            throw new ResourceNotFoundException("Service does not belong to the specified module");
-        }
-        deleteService(service);
-    }
 }

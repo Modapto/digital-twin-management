@@ -20,13 +20,10 @@ import com.github.dockerjava.api.command.BuildImageResultCallback;
 import com.github.dockerjava.api.command.PullImageCmd;
 import com.github.dockerjava.api.model.AccessMode;
 import com.github.dockerjava.api.model.Bind;
-import com.github.dockerjava.api.model.BuildResponseItem;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Info;
 import com.github.dockerjava.api.model.Link;
 import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.PushResponseItem;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -36,6 +33,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.config.DockerConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
+import eu.modapto.digitaltwinmanagement.exception.DockerException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import java.io.File;
@@ -193,7 +191,7 @@ public class DockerHelper {
             pullImageCmd.start().awaitCompletion();
         }
         catch (InterruptedException e) {
-            throw new RuntimeException(String.format("failed to pull docker image from registry (image: %s, reason: %s)", image, e.getMessage()));
+            throw new DockerException(String.format("failed to pull docker image from registry (image: %s, reason: %s)", image, e.getMessage()));
         }
     }
 
@@ -236,13 +234,7 @@ public class DockerHelper {
         BuildImageCmd buildImageCmd = client.buildImageCmd()
                 .withDockerfile(dockerFile)
                 .withTag(imageName);
-
-        return buildImageCmd.exec(new BuildImageResultCallback() {
-            @Override
-            public void onNext(BuildResponseItem item) {
-                super.onNext(item);
-            }
-        }).awaitImageId();
+        return buildImageCmd.exec(new BuildImageResultCallback() {}).awaitImageId();
     }
 
 
@@ -260,22 +252,10 @@ public class DockerHelper {
     }
 
 
-    private static boolean pathConversionNeeded(DockerClient client) {
-        Info info = client.infoCmd().exec();
-        return (Objects.nonNull(info.getKernelVersion()) && info.getKernelVersion().toLowerCase().contains("wsl"))
-                || (System.getProperty("os.name", "").toLowerCase().startsWith("windows") && !info.getOsType().toLowerCase().startsWith("windows"));
-    }
-
-
     public void pushImage(DockerClient dockerClient, String imageName, String repository) throws InterruptedException {
         dockerClient.pushImageCmd(imageName)
                 .withName(repository)
-                .exec(new PushImageResultCallback() {
-                    @Override
-                    public void onNext(PushResponseItem item) {
-                        super.onNext(item);
-                    }
-                }).awaitCompletion();
+                .exec(new PushImageResultCallback() {}).awaitCompletion();
     }
 
 

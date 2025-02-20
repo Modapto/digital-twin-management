@@ -14,13 +14,9 @@
  */
 package eu.modapto.digitaltwinmanagement.util;
 
-import static no.ntnu.ihb.fmi4j.modeldescription.variables.VariableType.STRING;
-import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.BOOLEAN;
-import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.DOUBLE;
-import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.INT;
-import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.INTEGER;
 import static org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd.STRING;
 
+import eu.modapto.digitaltwinmanagement.exception.FmuException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -51,6 +47,9 @@ import org.slf4j.LoggerFactory;
  */
 public class FmuHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(FmuHelper.class);
+
+    private FmuHelper() {}
+
 
     /**
      * Gets the output arguments with current values from the fmuInstance.
@@ -227,7 +226,7 @@ public class FmuHelper {
                 }
             }
             if (!instance.getLastStatus().isOK()) {
-                throw new RuntimeException(String.format(String.format("Setting input value on FMU failed (name: %s)", property.getIdShort())));
+                throw new FmuException(String.format(String.format("Setting input value on FMU failed (name: %s)", property.getIdShort())));
             }
         }
     }

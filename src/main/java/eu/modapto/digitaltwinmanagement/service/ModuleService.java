@@ -32,14 +32,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class ModuleService {
-    @Autowired
-    private DigitalTwinManager dtManager;
+
+    private static final String ERROR_MSG_MODULE_NOT_FOUND = "module not found";
+    private final DigitalTwinManager dtManager;
+    private final ModuleRepository moduleRepository;
+    private final KafkaBridge kafkaBridge;
 
     @Autowired
-    private ModuleRepository moduleRepository;
+    public ModuleService(DigitalTwinManager dtManager, ModuleRepository moduleRepository, KafkaBridge kafkaBridge) {
+        this.dtManager = dtManager;
+        this.moduleRepository = moduleRepository;
+        this.kafkaBridge = kafkaBridge;
+    }
 
-    @Autowired
-    private KafkaBridge kafkaBridge;
 
     public Module createModule(Module module) throws Exception {
         Module result = moduleRepository.save(module);
@@ -61,7 +66,7 @@ public class ModuleService {
 
     public Module updateModule(Long moduleId, Module module) throws Exception {
         moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
         module.setId(moduleId);
         dtManager.update(module);
         kafkaBridge.publish(ModuleUpdatedEvent.builder()
@@ -76,7 +81,7 @@ public class ModuleService {
 
     public void deleteModule(Long moduleId) throws Exception {
         Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
         dtManager.undeploy(module);
         module.getServices().forEach(x -> {
             x.setModule(null);
@@ -90,6 +95,6 @@ public class ModuleService {
 
     public Module getModuleById(Long moduleId) {
         return moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Module not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
     }
 }

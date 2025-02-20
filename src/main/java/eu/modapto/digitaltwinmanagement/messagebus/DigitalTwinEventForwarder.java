@@ -22,6 +22,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.messagebus.event.access.Opera
 import de.fraunhofer.iosb.ilt.faaast.service.util.PortHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
+import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
@@ -71,6 +72,8 @@ public class DigitalTwinEventForwarder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinEventForwarder.class);
     private static final Pattern REGEX_MQTT_TOPIC = Pattern.compile("module\\/(\\d{1,19})\\/Operation(Invoke|Finish)EventMessage");
+    private final DigitalTwinManagementConfig config;
+    private final KafkaBridge kafkaBridge;
     private final JsonEventDeserializer deserializer;
     private final Map<Long, Module> modules;
     private ExecutorService executorService;
@@ -80,12 +83,9 @@ public class DigitalTwinEventForwarder {
     private BlockingQueue<InterceptPublishMessage> eventQueue;
 
     @Autowired
-    private DigitalTwinManagementConfig config;
-
-    @Autowired
-    private KafkaBridge kafkaBridge;
-
-    public DigitalTwinEventForwarder() {
+    public DigitalTwinEventForwarder(DigitalTwinManagementConfig config, KafkaBridge kafkaBridge) {
+        this.config = config;
+        this.kafkaBridge = kafkaBridge;
         deserializer = new JsonEventDeserializer();
         modules = Collections.synchronizedMap(new HashMap<>());
     }
@@ -189,7 +189,12 @@ public class DigitalTwinEventForwarder {
 
 
     private void handle(InterceptPublishMessage msg) {
-        LOGGER.trace("handling MQTT message (clientId: {}, topic: {}, payload: {})", msg.getClientID(), msg.getClientID(), msg.getPayload().toString(StandardCharsets.UTF_8));
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("handling MQTT message (clientId: {}, topic: {}, payload: {})",
+                    msg.getClientID(),
+                    msg.getClientID(),
+                    msg.getPayload().toString(StandardCharsets.UTF_8));
+        }
         String topic = msg.getTopicName();
         Matcher matcher = REGEX_MQTT_TOPIC.matcher(topic);
         if (!matcher.matches()) {
@@ -210,9 +215,14 @@ public class DigitalTwinEventForwarder {
                 handle(service, finish);
             }
             else {
-                throw new RuntimeException(String.format("Received unsupported message from Digital Twin message bus (type: %s)", event.getClass().getSimpleName()));
+                throw new DigitalTwinException(String.format("Received unsupported message from Digital Twin message bus (type: %s)", event.getClass().getSimpleName()));
             }
-            LOGGER.trace("MQTT message handled (clientId: {}, topic: {}, payload: {})", msg.getClientID(), msg.getClientID(), msg.getPayload().toString(StandardCharsets.UTF_8));
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("MQTT message handled (clientId: {}, topic: {}, payload: {})",
+                        msg.getClientID(),
+                        msg.getClientID(),
+                        msg.getPayload().toString(StandardCharsets.UTF_8));
+            }
 
         }
         catch (ResourceNotFoundException | DeserializationException e) {
@@ -227,7 +237,12 @@ public class DigitalTwinEventForwarder {
             if (!eventQueue.offer(msg)) {
                 LOGGER.error("Failed to queue MQTT message");
             }
-            LOGGER.trace("MQTT message queued (clientId: {}, topic: {}, payload: {})", msg.getClientID(), msg.getClientID(), msg.getPayload().toString(StandardCharsets.UTF_8));
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("MQTT message queued (clientId: {}, topic: {}, payload: {})",
+                        msg.getClientID(),
+                        msg.getClientID(),
+                        msg.getPayload().toString(StandardCharsets.UTF_8));
+            }
         }
 
 

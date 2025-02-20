@@ -12,22 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.serialization;
+package eu.modapto.digitaltwinmanagement.exception;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import de.fraunhofer.iosb.ilt.faaast.service.model.value.ElementValue;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
+public class FmuException extends RuntimeException {
+    public FmuException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
 
-public class NullDeserializer extends JsonDeserializer<Object> {
-
-    @Override
-    public Map<String, ElementValue> deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-        parser.skipChildren();
-        return Collections.emptyMap();
+    public FmuException(String message) {
+        super(message);
     }
 }

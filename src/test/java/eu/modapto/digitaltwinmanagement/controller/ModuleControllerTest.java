@@ -15,8 +15,8 @@
 package eu.modapto.digitaltwinmanagement.controller;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -58,6 +58,7 @@ import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
+import eu.modapto.digitaltwinmanagement.model.request.GetServiceDetailsRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
@@ -227,22 +228,20 @@ public class ModuleControllerTest {
 
     private void initServiceCatalogueMock() throws SerializationException, IOException {
         SERVICE_CATALOG_MOCK.start();
-        config.setServiceCatalogueUrl(SERVICE_CATALOG_MOCK.baseUrl());
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, EMBEDDED_SMART_SERVICE_ID)))
+        config.setServiceCatalogueHost(SERVICE_CATALOG_MOCK.baseUrl());
+        mockServiceInCatalog(EMBEDDED_SMART_SERVICE_ID, EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE);
+        mockServiceInCatalog(INTERNAL_SMART_SERVICE_ID, INTERNAL_ADD_CATALOG_RESPONSE);
+        mockServiceInCatalog(EXTERNAL_SMART_SERVICE_ID, EXTERNAL_CATALOG_RESPONSE);
+    }
+
+
+    private void mockServiceInCatalog(String serviceId, String responsePayload) throws JsonProcessingException {
+        SERVICE_CATALOG_MOCK.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlEqualTo(config.getServiceCataloguePath()))
+                .withRequestBody(equalToJson(mapper.writeValueAsString(new GetServiceDetailsRequestDto(serviceId))))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE)));
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, INTERNAL_SMART_SERVICE_ID)))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(INTERNAL_ADD_CATALOG_RESPONSE)));
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, EXTERNAL_SMART_SERVICE_ID)))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(EXTERNAL_CATALOG_RESPONSE)));
+                        .withBody(responsePayload)));
     }
 
 
@@ -402,7 +401,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testCreateInternalService() throws Exception {
+    void testCreateInternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
@@ -472,7 +471,7 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testCreateExternalService() throws Exception {
+    void testCreateExternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
@@ -493,13 +492,9 @@ public class ModuleControllerTest {
 
 
     @Test
-    public void testDeleteService() throws Exception {
+    void testDeleteService() throws Exception {
         String serviceId = "test-delete-service";
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, serviceId)))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(EXTERNAL_CATALOG_RESPONSE)));
+        mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
 
         Module module = moduleService.createModule(newDefaultModule());
         SmartService service = smartServiceService.addServiceToModule(
@@ -517,11 +512,7 @@ public class ModuleControllerTest {
     @Test
     void testDeleteModule() throws Exception {
         String serviceId = "test-delete-module";
-        SERVICE_CATALOG_MOCK.stubFor(get(urlPathEqualTo(String.format(REST_PATH_SERVICE_TEMPLATE, serviceId)))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(EXTERNAL_CATALOG_RESPONSE)));
+        mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
 
         Module module = moduleService.createModule(newDefaultModule());
         SmartService service = smartServiceService.addServiceToModule(
@@ -588,7 +579,7 @@ public class ModuleControllerTest {
     }
 
 
-    private void assertInvokeServiceResponse(SmartServiceResponseDto service, String payload, String expectedResult) throws JSONException, JsonProcessingException {
+    private void assertInvokeServiceResponse(SmartServiceResponseDto service, String payload, String expectedResult) throws JSONException {
         LOGGER.info("invoking smart service...");
         LOGGER.info("name: {}", service.getName());
         LOGGER.info("url: {}/invoke/$value", service.getEndpoint());
@@ -613,14 +604,14 @@ public class ModuleControllerTest {
     }
 
 
-    private <T extends AbstractEvent> void assertKafkaEvent(EventInfo... events) throws JsonProcessingException {
+    private <T extends AbstractEvent> void assertKafkaEvent(EventInfo... events) {
         assertKafkaEvents(Arrays.asList(events));
     }
 
 
-    private <T extends AbstractEvent> void assertKafkaEvents(List<EventInfo> events) throws JsonProcessingException {
+    private <T extends AbstractEvent> void assertKafkaEvents(List<EventInfo> events) {
         for (var event: events) {
-            verify(kafkaTemplate, timeout(KAFKA_TIMEOUT_IN_MS)).send(anyString(), argThat(new ArgumentMatcher<String>() {
+            verify(kafkaTemplate, timeout(KAFKA_TIMEOUT_IN_MS)).send(anyString(), argThat(new ArgumentMatcher<>() {
                 @Override
                 public boolean matches(String value) {
                     try {

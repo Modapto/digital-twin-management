@@ -30,6 +30,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
+import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.messagebus.DigitalTwinEventForwarder;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.digitaltwinmanagement.model.ExternalSmartService;
@@ -37,9 +38,8 @@ import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
-import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
-import eu.modapto.digitaltwinmanagement.smartservice.embedded.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
+import eu.modapto.digitaltwinmanagement.util.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
 import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import jakarta.annotation.PostConstruct;
@@ -93,17 +93,24 @@ public class DigitalTwinManager {
     private DockerClient dockerClient;
     private boolean dockerAvailable;
 
-    @Autowired
-    private DigitalTwinManagementConfig config;
+    private final DigitalTwinManagementConfig config;
+
+    private final DigitalTwinConnectorFactory connectorFactory;
+
+    private final DigitalTwinEventForwarder eventForwarder;
+
+    private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
     @Autowired
-    private DigitalTwinConnectorFactory connectorFactory;
+    public DigitalTwinManager(DigitalTwinManagementConfig config, DigitalTwinConnectorFactory connectorFactory, DigitalTwinEventForwarder eventForwarder,
+            DigitalTwinDeploymentDockerConfig dockerConfig) {
+        this.config = config;
+        this.connectorFactory = connectorFactory;
+        this.eventForwarder = eventForwarder;
+        this.dockerConfig = dockerConfig;
 
-    @Autowired
-    private DigitalTwinEventForwarder eventForwarder;
+    }
 
-    @Autowired
-    private DigitalTwinDeploymentDockerConfig dockerConfig;
 
     @PostConstruct
     private void init() {
@@ -120,7 +127,7 @@ public class DigitalTwinManager {
 
     public void deploy(Module module) throws Exception {
         if (instances.containsKey(module.getId())) {
-            throw new RuntimeException(String.format("DT for module already exists (module id: %s)", module.getId()));
+            throw new DigitalTwinException(String.format("DT for module already exists (module id: %s)", module.getId()));
         }
         deploy(module, findFreePort());
     }
@@ -201,7 +208,6 @@ public class DigitalTwinManager {
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
         EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         for (var service: module.getServices()) {
-            validateServiceName(service);
             Submodel submodel = getOrCreateModaptoSubmodel(actualModel);
             Operation operation;
             if (service instanceof EmbeddedSmartService embedded) {
@@ -335,18 +341,18 @@ public class DigitalTwinManager {
                 LOGGER.debug("request failed (status code: {})", response.statusCode());
             }
             catch (IOException | InterruptedException e) {
-                LOGGER.debug("request failed (reason: {})", e.getCause());
+                LOGGER.trace("request failed (reason: {})", e.getCause());
             }
             elapsedTime = Duration.between(startTime, Instant.now()).toMillis();
             try {
                 Thread.sleep(INTERVAL_CHECK_REST_AVAILABLE_IN_MS);
             }
             catch (InterruptedException e) {
-                LOGGER.debug("Thread interrepted while waiting for {} to become available", type, e);
+                LOGGER.trace("Thread interrepted while waiting for {} to become available", type, e);
             }
         }
 
-        throw new RuntimeException(String.format(
+        throw new DigitalTwinException(String.format(
                 "%s could not be started in time (method: %s, endpoint: %s, timeout: %d)", type, method, url, TIMEOUT_REST_AVAILABLE_IN_MS));
     }
 
@@ -355,16 +361,6 @@ public class DigitalTwinManager {
         module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
         for (var service: module.getServices()) {
             service.setOperationEndpoint(module.getEndpoint() + service.getOperationEndpoint());
-        }
-    }
-
-
-    private void validateServiceName(SmartService service) {
-        if (Objects.isNull(service)
-                || Objects.isNull(service.getName())
-                || service.getName().length() > 128
-                || !service.getName().matches(SmartServiceRequestDto.NAME_REGEX)) {
-            throw new IllegalArgumentException(String.format("invalid service name - must match regex '%s' and be max. 128 characters long", SmartServiceRequestDto.NAME_REGEX));
         }
     }
 
@@ -479,7 +475,7 @@ public class DigitalTwinManager {
 
     public void update(Module module) throws Exception {
         if (!instances.containsKey(module.getId())) {
-            throw new RuntimeException(String.format("DT for module does not exist (module id: %s)", module.getId()));
+            throw new DigitalTwinException(String.format("DT for module does not exist (module id: %s)", module.getId()));
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
@@ -489,7 +485,7 @@ public class DigitalTwinManager {
 
     public void undeploy(Module module) throws Exception {
         if (!instances.containsKey(module.getId())) {
-            throw new RuntimeException(String.format("DT for module does not exist (module id: %s)", module.getId()));
+            throw new DigitalTwinException(String.format("DT for module does not exist (module id: %s)", module.getId()));
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
@@ -505,7 +501,7 @@ public class DigitalTwinManager {
             return socket.getLocalPort();
         }
         catch (IOException e) {
-            throw new RuntimeException("No free port found", e);
+            throw new DigitalTwinException("No free port found", e);
         }
     }
 

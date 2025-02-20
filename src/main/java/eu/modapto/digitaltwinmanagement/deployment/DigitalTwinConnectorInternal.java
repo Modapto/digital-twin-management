@@ -16,8 +16,12 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.Service;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.exception.EndpointException;
+import de.fraunhofer.iosb.ilt.faaast.service.exception.MessageBusException;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.model.exception.PersistenceException;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
+import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import java.util.stream.Collectors;
 
 
@@ -46,13 +50,18 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
 
 
     @Override
-    public void start() throws Exception {
-        service.start();
+    public void start() {
+        try {
+            service.start();
+        }
+        catch (MessageBusException | EndpointException | PersistenceException e) {
+            throw new DigitalTwinException(String.format("starting Digital Twin failed (reason: %s)", e.getMessage()), e);
+        }
     }
 
 
     @Override
-    public void stop() throws Exception {
+    public void stop() {
         service.stop();
     }
 }

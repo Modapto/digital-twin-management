@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.smartservice.embedded;
+package eu.modapto.digitaltwinmanagement.util;
 
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.submodeltemplate.Cardinality;
@@ -20,7 +20,6 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
-import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import eu.modapto.dt.faaast.service.smt.simulation.FmuHelper;
 import java.io.IOException;
 import java.util.List;
@@ -44,7 +43,6 @@ import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperation;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
-import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollection;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementList;
 
@@ -70,6 +68,8 @@ public class EmbeddedSmartServiceHelper {
     private static final String ARG_RESULT_PER_STEP_ID = "resultPerStep";
 
     private static final String SMC_SIMULATION_MODELS_PREFIX = "SimulationModel_";
+
+    private EmbeddedSmartServiceHelper() {}
 
     private static final OperationVariable ARG_CURRENT_TIME = new DefaultOperationVariable.Builder()
             .value(new DefaultProperty.Builder()
@@ -241,15 +241,6 @@ public class EmbeddedSmartServiceHelper {
                 .filter(x -> Objects.equals(x.getIdShort(), ID_SHORT_SIMULATION_MODELS))
                 .findFirst()
                 .orElse(null);
-    }
-
-
-    private static Submodel createSubmodel() {
-        return new DefaultSubmodel.Builder()
-                .semanticId(SEMANTIC_ID_SMT_SIMULATION)
-                .id(String.format("http://modapto.eu/smart-service-container/%s", randomId()))
-                .idShort(ID_SHORT_SIMULATION_MODELS)
-                .build();
     }
 
 

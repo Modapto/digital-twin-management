@@ -34,8 +34,11 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 
-    @Value("${modapto.service-catalogue.url}")
-    private String serviceCatalogueUrl;
+    @Value("${modapto.service-catalogue.host}")
+    private String serviceCatalogueHost;
+
+    @Value("${modapto.service-catalogue.path}")
+    private String serviceCataloguePath;
 
     @Value("${dt-management.events.mqtt.host:localhost}")
     private String mqttHost;

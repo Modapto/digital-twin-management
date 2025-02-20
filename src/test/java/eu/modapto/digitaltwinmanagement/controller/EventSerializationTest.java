@@ -14,7 +14,6 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.fraunhofer.iosb.ilt.faaast.service.model.exception.ValueFormatException;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.Datatype;
@@ -46,7 +45,7 @@ import org.springframework.test.context.ContextConfiguration;
 
 @SpringBootTest
 @ContextConfiguration
-public class EventSerializationTest {
+class EventSerializationTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventSerializationTest.class);
     private static final String PATH_EVENT = "event";
@@ -83,7 +82,7 @@ public class EventSerializationTest {
     private ObjectMapper mapper;
 
     @BeforeAll
-    private static void init() throws ValueFormatException {
+    static void init() throws ValueFormatException {
         EVENT_SERVICE_INVOKED = SmartServiceInvokedEvent.builder()
                 .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
                 .moduleId(1)
@@ -119,36 +118,36 @@ public class EventSerializationTest {
 
 
     @Test
-    public void serializeModuleCreatedEvent() throws JsonProcessingException, JSONException, IOException {
+    void serializeModuleCreatedEvent() throws JSONException, IOException {
         assertSerialize(EVENT_MODULE_CREATED, EVENT_MODULE_CREATED_FILENAME);
     }
 
 
     @Test
-    public void serializeModuleDeletedEvent() throws JsonProcessingException, JSONException, IOException {
+    void serializeModuleDeletedEvent() throws JSONException, IOException {
         assertSerialize(EVENT_MODULE_DELETED, EVENT_MODULE_DELETED_FILENAME);
     }
 
 
     @Test
-    public void serializeModuleUpdatedEvent() throws JsonProcessingException, JSONException, IOException {
+    void serializeModuleUpdatedEvent() throws JSONException, IOException {
         assertSerialize(EVENT_MODULE_UPDATED, EVENT_MODULE_UPDATED_FILENAME);
     }
 
 
     @Test
-    public void serializeServiceInvokeEvent() throws JsonProcessingException, JSONException, IOException, ValueFormatException {
+    void serializeServiceInvokeEvent() throws JSONException, IOException {
         assertSerialize(EVENT_SERVICE_INVOKED, EVENT_SERVICE_INVOKED_FILENAME);
     }
 
 
     @Test
-    public void serializeServiceFinishedEvent() throws JsonProcessingException, JSONException, IOException, ValueFormatException {
+    void serializeServiceFinishedEvent() throws JSONException, IOException {
         assertSerialize(EVENT_SERVICE_FINISHED, EVENT_SERVICE_FINISHED_FILENAME);
     }
 
 
-    private void assertSerialize(Object event, String filename) throws JsonProcessingException, JSONException, IOException {
+    private void assertSerialize(Object event, String filename) throws JSONException, IOException {
         String expected = Files.readString(new ClassPathResource("/" + PATH_EVENT + "/" + filename).getFile().toPath());
         String actual = mapper.writeValueAsString(event);
         LOGGER.info(actual);

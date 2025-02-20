@@ -12,22 +12,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.serialization;
+package eu.modapto.digitaltwinmanagement.model.request;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import de.fraunhofer.iosb.ilt.faaast.service.model.value.ElementValue;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
+import lombok.EqualsAndHashCode;
 
 
-public class NullDeserializer extends JsonDeserializer<Object> {
+@EqualsAndHashCode
+public class GetServiceDetailsRequestDto {
+    private final Id id;
 
-    @Override
-    public Map<String, ElementValue> deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-        parser.skipChildren();
-        return Collections.emptyMap();
+    public GetServiceDetailsRequestDto(String id) {
+        this.id = new Id(id);
+    }
+
+
+    public Id getId() {
+        return id;
+    }
+
+    @EqualsAndHashCode
+    public static class Id {
+        private final String value;
+
+        public Id(String value) {
+            this.value = value;
+        }
+
+
+        public String getValue() {
+            return value;
+        }
     }
 }
