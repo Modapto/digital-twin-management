@@ -9,11 +9,6 @@ on:
     paths-ignore:
       - '**/README.md'
       - '*.github/workflows/**'
-  pull_request:
-    branches: [ "main" ]
-    paths-ignore:
-      - '**/README.md'
-      - '*.github/workflows/**'
   workflow_dispatch:
 
 jobs:
