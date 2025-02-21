@@ -360,7 +360,15 @@ public class DigitalTwinManager {
 
 
     private void updateEndpoints(Module module, int port) {
-        module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
+        if (module.getType() == DeploymentType.DOCKER) {
+            module.setEndpoint(String.format("http://%s:%d%s",
+                    DockerHelper.getContainerName(module),
+                    DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL,
+                    module.getEndpoint()));
+        }
+        else {
+            module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
+        }
         for (var service: module.getServices()) {
             service.setOperationEndpoint(module.getEndpoint() + service.getOperationEndpoint());
         }
@@ -448,7 +456,7 @@ public class DigitalTwinManager {
         DeploymentType moduleType = service.getModule().getType();
         if (service instanceof InternalSmartService internalService) {
             if (moduleType == DeploymentType.DOCKER) {
-                baseUrl = String.format(DockerHelper.getContainerName(internalService));
+                baseUrl = String.format("http://%s:%d", DockerHelper.getContainerName(internalService), internalService.getInternalPort());
                 path = internalService.getHttpEndpoint();
             }
             else {
