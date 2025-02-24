@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.model.event;
 
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceInvokedPayload;
-import java.util.Objects;
 import lombok.EqualsAndHashCode;
 
 
@@ -51,7 +50,7 @@ public class SmartServiceInvokedEvent extends AbstractEvent<SmartServiceInvokedP
 
         @Override
         public Builder payload(SmartServiceInvokedPayload value) {
-            getBuildingInstance().setSmartService(Objects.nonNull(value) ? Long.toString(value.getServiceId()) : null);
+            getBuildingInstance().setSmartService(value.getServiceId());
             return super.payload(value);
         }
     }

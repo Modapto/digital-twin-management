@@ -24,20 +24,23 @@ import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConf
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.HttpAssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.provider.config.HttpOperationProviderConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
-import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.LambdaExceptionHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.PortHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.messagebus.DigitalTwinEventForwarder;
+import eu.modapto.digitaltwinmanagement.model.Address;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.digitaltwinmanagement.model.ExternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.repository.LiveModuleRepository;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import eu.modapto.digitaltwinmanagement.util.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
@@ -45,7 +48,6 @@ import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -81,36 +83,33 @@ import org.springframework.stereotype.Component;
 public class DigitalTwinManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinManager.class);
-    public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
-    public static final String LOCALHOST = "localhost";
     private static final String MODAPTO_SUBMODEL_ID_SHORT = "ModaptoSmartServices";
     private static final String MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE = "http://modapto.eu/smt/modapto-smart-services";
     private static final Reference MODAPTO_SUBMODEL_SEMANTIC_ID = ReferenceBuilder.global(MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE);
     private static final long TIMEOUT_REST_AVAILABLE_IN_MS = 60000;
     private static final long INTERVAL_CHECK_REST_AVAILABLE_IN_MS = 500;
 
-    private final Map<Long, DigitalTwinConnector> instances = new HashMap<>();
-    private DockerClient dockerClient;
-    private boolean dockerAvailable;
-
     private final DigitalTwinManagementConfig config;
+    private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
+    private final LiveModuleRepository liveModuleRepository;
     private final DigitalTwinConnectorFactory connectorFactory;
 
-    private final DigitalTwinEventForwarder eventForwarder;
-
-    private final DigitalTwinDeploymentDockerConfig dockerConfig;
+    private final Map<String, DigitalTwinConnector> instances = new HashMap<>();
+    private DockerClient dockerClient;
+    private boolean dockerAvailable;
 
     @Autowired
     public DigitalTwinManager(
             DigitalTwinManagementConfig config,
+            DigitalTwinDeploymentDockerConfig dockerConfig,
+            LiveModuleRepository liveModuleRepository,
             DigitalTwinConnectorFactory connectorFactory,
-            DigitalTwinEventForwarder eventForwarder,
-            DigitalTwinDeploymentDockerConfig dockerConfig) {
+            DigitalTwinEventForwarder eventForwarder) {
         this.config = config;
-        this.connectorFactory = connectorFactory;
-        this.eventForwarder = eventForwarder;
         this.dockerConfig = dockerConfig;
+        this.liveModuleRepository = liveModuleRepository;
+        this.connectorFactory = connectorFactory;
     }
 
 
@@ -124,6 +123,16 @@ public class DigitalTwinManager {
             dockerAvailable = false;
             LOGGER.warn("Docker connection unsuccessful - Digital Twin Manager will not be able to handle Smart Services of type 'internal'", e);
         }
+        liveModuleRepository.getAll().forEach(x -> {
+            try {
+                DigitalTwinConnector connector = connectorFactory.create(x);
+                connector.recreate();
+                instances.put(x.getId(), connector);
+            }
+            catch (Exception e) {
+                LOGGER.warn("failed to re-create Digital Twin connector (moduleId: {}, reason: {})", x.getId(), e.getMessage(), e);
+            }
+        });
     }
 
 
@@ -131,79 +140,18 @@ public class DigitalTwinManager {
         if (instances.containsKey(module.getId())) {
             throw new DigitalTwinException(String.format("DT for module already exists (module id: %s)", module.getId()));
         }
-        deploy(module, findFreePort());
-    }
-
-
-    private String getModuleToHostAddress(Module module) {
-        DeploymentType hostType = config.getDeploymentType();
-        DeploymentType moduleType = module.getType();
-        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.INTERNAL) {
-            return LOCALHOST;
-        }
-        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.DOCKER) {
-            return HOST_DOCKER_INTERNAL;
-        }
-        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.INTERNAL) {
-            return LOCALHOST;
-        }
-        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
-            return System.getenv("HOSTNAME");
-        }
-        throw new IllegalStateException();
-    }
-
-
-    private Address getHostToModuleAddress(Module module, int port) {
-        DeploymentType hostType = config.getDeploymentType();
-        DeploymentType moduleType = module.getType();
-        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.INTERNAL) {
-            return new Address(LOCALHOST, port);
-        }
-        if (hostType == DeploymentType.INTERNAL && moduleType == DeploymentType.DOCKER) {
-            return new Address(LOCALHOST, port);
-        }
-        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.INTERNAL) {
-            return new Address(LOCALHOST, port);
-        }
-        if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
-            return new Address(
-                    DockerHelper.getContainerName(module),
-                    DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL);
-        }
-        throw new IllegalStateException();
-    }
-
-
-    private Address getModuleToServiceAddress(SmartService service, int port) {
-        DeploymentType moduleType = service.getModule().getType();
-        if (service instanceof InternalSmartService internalService && moduleType == DeploymentType.DOCKER) {
-            return new Address(
-                    DockerHelper.getContainerName(internalService),
-                    internalService.getInternalPort());
-        }
-        return new Address(LOCALHOST, port);
+        deploy(module, PortHelper.findFreePort());
     }
 
 
     private void deploy(Module module, int port) throws Exception {
+        module.setExternalPort(port);
         createActualModel(module);
-        DigitalTwinConnector dt = connectorFactory.create(
-                module.getType(),
-                DigitalTwinConfig.builder()
-                        .module(module)
-                        .environmentContext(module.getActualModel())
-                        .httpPort(port)
-                        .messageBusMqttHost(getModuleToHostAddress(module))
-                        .messageBusMqttPort(eventForwarder.getMqttPort())
-                        .assetConnections(module.getAssetConnections())
-                        .build());
+        DigitalTwinConnector dt = connectorFactory.create(module);
         dt.start();
         instances.put(module.getId(), dt);
-        eventForwarder.subscribe(module);
-        module.setEndpoint("/api/v3.0");
-        waitUntilModuleIsRunning(module, port);
-        updateEndpoints(module, port);
+        liveModuleRepository.subscribe(module);
+        waitUntilModuleIsRunning(module);
     }
 
 
@@ -237,9 +185,6 @@ public class DigitalTwinManager {
             }
             handleInputArgumentTypes(service, operation);
             service.setReference(ReferenceBuilder.forSubmodel(submodel, operation));
-            service.setOperationEndpoint(String.format("/submodels/%s/submodel-elements/%s",
-                    EncodingHelper.base64UrlEncode(submodel.getId()),
-                    service.getName()));
         }
         module.setActualModel(actualModel);
     }
@@ -284,41 +229,18 @@ public class DigitalTwinManager {
     }
 
 
-    private void waitUntilModuleIsRunning(Module module, int port) throws URISyntaxException {
-        Address address = getHostToModuleAddress(module, port);
+    private void waitUntilModuleIsRunning(Module module) throws URISyntaxException {
         waitUntilHttpServerIsRunning(
                 HttpMethod.GET,
-                address.getHost(),
-                address.getPort(),
-                module.getEndpoint() + "/submodels", "Digital Twin");
+                module.getInternalEndpoint() + "/submodels",
+                "Digital Twin");
         module.getServices().stream()
                 .forEach(LambdaExceptionHelper.rethrowConsumer(x -> {
                     waitUntilHttpServerIsRunning(
                             HttpMethod.GET,
-                            address.host,
-                            address.getPort(),
-                            x.getOperationEndpoint(),
+                            x.getInternalEndpoint(),
                             "Smart Service");
                 }));
-    }
-
-
-    private void waitUntilHttpServerIsRunning(InternalSmartService service, int port) throws URISyntaxException {
-        waitUntilHttpServerIsRunning(
-                HttpMethod.OPTIONS,
-                config.getDeploymentType() == DeploymentType.INTERNAL
-                        ? LOCALHOST
-                        : DockerHelper.getContainerName(service),
-                config.getDeploymentType() == DeploymentType.INTERNAL
-                        ? port
-                        : service.getInternalPort(),
-                service.getHttpEndpoint(),
-                "Internal Service Docker Container");
-    }
-
-
-    private void waitUntilHttpServerIsRunning(HttpMethod method, String host, int port, String path, String type) throws URISyntaxException {
-        waitUntilHttpServerIsRunning(method, String.format("http://%s:%s%s", host, port, path), type);
     }
 
 
@@ -354,24 +276,11 @@ public class DigitalTwinManager {
             }
         }
 
-        throw new DigitalTwinException(String.format(
-                "%s could not be started in time (method: %s, endpoint: %s, timeout: %d)", type, method, url, TIMEOUT_REST_AVAILABLE_IN_MS));
-    }
-
-
-    private void updateEndpoints(Module module, int port) {
-        if (module.getType() == DeploymentType.DOCKER) {
-            module.setEndpoint(String.format("http://%s:%d%s",
-                    DockerHelper.getContainerName(module),
-                    DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL,
-                    module.getEndpoint()));
-        }
-        else {
-            module.setEndpoint(String.format("http://%s:%d%s", config.getHostname(), port, module.getEndpoint()));
-        }
-        for (var service: module.getServices()) {
-            service.setOperationEndpoint(module.getEndpoint() + service.getOperationEndpoint());
-        }
+        throw new DigitalTwinException(String.format("%s could not be started in time (method: %s, endpoint: %s, timeout: %d)",
+                type,
+                method,
+                url,
+                TIMEOUT_REST_AVAILABLE_IN_MS));
     }
 
 
@@ -404,7 +313,7 @@ public class DigitalTwinManager {
 
 
     private int startContainerForInternalService(InternalSmartService service) throws URISyntaxException {
-        int port = findFreePort();
+        int port = PortHelper.findFreePort();
         String containerId = DockerHelper.startContainer(
                 dockerClient,
                 DockerHelper.ContainerInfo.builder()
@@ -413,7 +322,10 @@ public class DigitalTwinManager {
                         .portMapping(port, service.getInternalPort())
                         .build());
         service.setContainerId(containerId);
-        waitUntilHttpServerIsRunning(service, port);
+        waitUntilHttpServerIsRunning(
+                HttpMethod.OPTIONS,
+                AddressTranslationHelper.getHostToInternalService(service, port).asUrl(),
+                "Internal Service Docker Container");
         return port;
     }
 
@@ -451,31 +363,14 @@ public class DigitalTwinManager {
 
 
     private AssetConnectionConfig createAssetConnection(Reference operation, RestBasedSmartService service, int port) throws MalformedURLException {
-        String baseUrl;
-        String path;
-        DeploymentType moduleType = service.getModule().getType();
-        if (service instanceof InternalSmartService internalService) {
-            if (moduleType == DeploymentType.DOCKER) {
-                baseUrl = String.format("http://%s:%d", DockerHelper.getContainerName(internalService), internalService.getInternalPort());
-                path = internalService.getHttpEndpoint();
-            }
-            else {
-                baseUrl = String.format("http://%s:%s", LOCALHOST, port);
-                path = internalService.getHttpEndpoint();
-            }
-        }
-        else {
-            URL url = new URL(service.getHttpEndpoint());
-            baseUrl = url.getProtocol() + "://" + url.getHost() + (url.getPort() != -1 ? ":" + url.getPort() : "");
-            path = url.getFile();
-        }
-        LOGGER.debug("Creating asset connection with baseUrl={} and path={}", baseUrl, path);
+        Address address = AddressTranslationHelper.getModuleToServiceAddress(service, port);
+        LOGGER.debug("Creating asset connection (address: {})", address);
         return HttpAssetConnectionConfig.builder()
-                .baseUrl(baseUrl)
+                .baseUrl(address.getBaseUrl())
                 .operationProvider(operation, HttpOperationProviderConfig.builder()
                         .format("JSON")
                         .method(service.getMethod())
-                        .path(path)
+                        .path(address.getPath())
                         .headers(service.getHeaders())
                         .template(service.getPayload())
                         .queries(service.getOutputMapping())
@@ -519,37 +414,7 @@ public class DigitalTwinManager {
         dt.stop();
         module.setActualModel(null);
         stopContainersForInternalServices(module);
-        eventForwarder.unsubscribe(module);
+        liveModuleRepository.unsubscribe(module);
         instances.remove(module.getId());
-    }
-
-
-    private static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-        catch (IOException e) {
-            throw new DigitalTwinException("No free port found", e);
-        }
-    }
-
-    private static class Address {
-        private final String host;
-        private final int port;
-
-        private Address(String host, int port) {
-            this.host = host;
-            this.port = port;
-        }
-
-
-        public String getHost() {
-            return host;
-        }
-
-
-        public int getPort() {
-            return port;
-        }
     }
 }

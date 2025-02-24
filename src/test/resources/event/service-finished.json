@@ -1,13 +1,13 @@
 {
-    "module": "1",
+    "module": "example-module-id",
     "timestamp": "2025-01-30T14:12:00",
     "priority": "LOW",
     "sourceComponent": "DT",
     "eventType": "Smart Service finished",
-    "smartService": "2",
+    "smartService": "example-service-id",
     "topic": "smart-service-finish",
     "results": {
-        "id": 2,
+        "id": "example-service-id",
         "serviceCatalogId": "my-service-catalog-id",
         "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
         "name": "ExampleService",

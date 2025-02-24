@@ -12,20 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement;
+package eu.modapto.digitaltwinmanagement.exception;
 
-import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
-import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
-import eu.modapto.digitaltwinmanagement.util.DockerHelper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+public class NetworkAddressException extends RuntimeException {
+    public NetworkAddressException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
 
-@Component
-public class AppInitializer {
-    @Autowired
-    public AppInitializer(DigitalTwinManagementConfig config) {
-        DockerHelper.setConfig(config);
-        AddressTranslationHelper.setConfig(config);
+    public NetworkAddressException(String message) {
+        super(message);
     }
 }

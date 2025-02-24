@@ -40,6 +40,7 @@ import java.nio.file.Paths;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.FileSystemUtils;
 
 
 public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
@@ -59,7 +60,6 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private DigitalTwinDeploymentDockerConfig dockerConfig;
 
     private DockerClient dockerClient;
-    private String containerId;
     private boolean running = false;
     private boolean dockerAvailable = false;
 
@@ -74,17 +74,17 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         catch (Exception e) {
             LOGGER.warn("Unable to connect to docker daemon. Requests to deploy Modules via docker will fail, internal deployment will work. (reason: {})", e.getMessage(), e);
         }
-        initContainer();
     }
 
 
     @Override
     public void start() {
+        initContainer();
         ensureDockerAvailable();
         if (running) {
             return;
         }
-        containerId = DockerHelper.startContainer(
+        config.getModule().setContainerId(DockerHelper.startContainer(
                 dockerClient,
                 ContainerInfo.builder()
                         .imageName(dockerConfig.getImage())
@@ -102,9 +102,9 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                                 .collect(Collectors.toMap(
                                         x -> x.getContainerId(),
                                         x -> x.getName())))
-                        .build());
+                        .build()));
         running = true;
-        LOGGER.info("docker container started with ID {}", containerId);
+        LOGGER.info("docker container started with ID {}", config.getModule().getContainerId());
     }
 
 
@@ -114,27 +114,44 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             return;
         }
         if (dockerAvailable) {
-            DockerHelper.stopContainer(dockerClient, containerId);
-            DockerHelper.removeContainer(dockerClient, containerId);
+            DockerHelper.stopContainer(dockerClient, config.getModule().getContainerId());
+            DockerHelper.removeContainer(dockerClient, config.getModule().getContainerId());
         }
+        cleanUpTempDirectoryAndFiles();
         running = false;
     }
 
 
     private void initContainer() {
-        initTempDirectoryAndFiles();
-        writeConfigFile();
-        writeModelFile();
-        writeAuxiliaryFiles();
+        if (initTempDirectoryAndFiles()) {
+            writeConfigFile();
+            writeModelFile();
+            writeAuxiliaryFiles();
+        }
     }
 
 
-    private void initTempDirectoryAndFiles() {
+    private void cleanUpTempDirectoryAndFiles() {
+        try {
+            FileSystemUtils.deleteRecursively(contextPath);
+        }
+        catch (IOException ex) {
+            LOGGER.debug("error cleaning up temp directory for docker-based DT (id: {}, dir: {})", config.getModule().getId(), contextPath);
+        }
+    }
+
+
+    private boolean initTempDirectoryAndFiles() {
+        boolean created = false;
         try {
             if (!Files.exists(TMP_DIR)) {
                 Files.createDirectories(TMP_DIR);
             }
-            contextPath = Files.createTempDirectory(TMP_DIR, "dt-");
+            contextPath = TMP_DIR.resolve("dt-" + config.getModule().getId());
+            if (!Files.exists(contextPath)) {
+                Files.createDirectories(contextPath);
+                created = true;
+            }
             modelFile = contextPath.resolve("model.json").toFile();
             configFile = contextPath.resolve("config.json").toFile();
             fileStoragePath = contextPath.resolve("file-storage");
@@ -142,6 +159,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         catch (IOException e) {
             throw new DigitalTwinException("failed to initialize temp directory and files", e);
         }
+        return created;
     }
 
 
@@ -214,6 +232,19 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         catch (InvalidPathException e) {
             LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", dockerConfig.getTmpDirHostMapping(), e);
             return file;
+        }
+    }
+
+
+    @Override
+    public void recreate() {
+        initContainer();
+        if (!DockerHelper.containerExists(dockerClient, config.getModule().getContainerId())) {
+            LOGGER.info("Re-creating Digital Twin... (type: DOCKER, moduleId: {}, reason: container not running)", config.getModule().getId());
+            start();
+        }
+        else if (!DockerHelper.isContainerRunning(dockerClient, config.getModule().getContainerId())) {
+            LOGGER.info("Re-attachting to Digital Twin... (type: DOCKER, moduleId: {}, containerId: {})", config.getModule().getId(), config.getModule().getContainerId());
         }
     }
 }

@@ -19,17 +19,16 @@ import de.fraunhofer.iosb.ilt.faaast.service.dataformat.json.JsonEventDeserializ
 import de.fraunhofer.iosb.ilt.faaast.service.model.messagebus.event.access.ExecuteEventMessage;
 import de.fraunhofer.iosb.ilt.faaast.service.model.messagebus.event.access.OperationFinishEventMessage;
 import de.fraunhofer.iosb.ilt.faaast.service.model.messagebus.event.access.OperationInvokeEventMessage;
-import de.fraunhofer.iosb.ilt.faaast.service.util.PortHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
-import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceFinishedPayload;
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceInvokedPayload;
+import eu.modapto.digitaltwinmanagement.repository.LiveModuleRepository;
 import eu.modapto.digitaltwinmanagement.util.Processor;
 import io.moquette.BrokerConstants;
 import io.moquette.broker.Server;
@@ -46,10 +45,7 @@ import io.moquette.interception.messages.InterceptUnsubscribeMessage;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -59,7 +55,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.Getter;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,23 +66,21 @@ import org.springframework.stereotype.Component;
 public class DigitalTwinEventForwarder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinEventForwarder.class);
-    private static final Pattern REGEX_MQTT_TOPIC = Pattern.compile("module\\/(\\d{1,19})\\/Operation(Invoke|Finish)EventMessage");
+    private static final Pattern REGEX_MQTT_TOPIC = Pattern.compile("module\\/([0-9a-fA-F-]{36})\\/Operation(Invoke|Finish)EventMessage");
     private final DigitalTwinManagementConfig config;
+    private final LiveModuleRepository liveModuleRepository;
     private final KafkaBridge kafkaBridge;
     private final JsonEventDeserializer deserializer;
-    private final Map<Long, Module> modules;
     private ExecutorService executorService;
     private Server mqttServer;
-    @Getter
-    private int mqttPort;
     private BlockingQueue<InterceptPublishMessage> eventQueue;
 
     @Autowired
-    public DigitalTwinEventForwarder(DigitalTwinManagementConfig config, KafkaBridge kafkaBridge) {
+    public DigitalTwinEventForwarder(DigitalTwinManagementConfig config, LiveModuleRepository liveModuleRepository, KafkaBridge kafkaBridge) {
         this.config = config;
+        this.liveModuleRepository = liveModuleRepository;
         this.kafkaBridge = kafkaBridge;
         deserializer = new JsonEventDeserializer();
-        modules = Collections.synchronizedMap(new HashMap<>());
     }
 
 
@@ -98,7 +91,6 @@ public class DigitalTwinEventForwarder {
         for (int i = 0; i < config.getMqttThreadCount(); i++) {
             executorService.submit(new Processor<>(eventQueue, this::handle, "mqtt-consumer"));
         }
-        mqttPort = config.getMqttPort() > 0 ? config.getMqttPort() : PortHelper.findFreePort();
         startMqttServer();
     }
 
@@ -107,10 +99,10 @@ public class DigitalTwinEventForwarder {
         mqttServer = new Server();
         IConfig serverConfig = new MemoryConfig(new Properties());
         serverConfig.setProperty(BrokerConstants.IMMEDIATE_BUFFER_FLUSH_PROPERTY_NAME, String.valueOf(true));
-        serverConfig.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(mqttPort));
+        serverConfig.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(config.getMqttPort()));
         serverConfig.setProperty(BrokerConstants.HOST_PROPERTY_NAME, config.getMqttHost());
         serverConfig.setProperty(BrokerConstants.ALLOW_ANONYMOUS_PROPERTY_NAME, "true");
-        LOGGER.debug("starting MQTT broker (port: {})", mqttPort);
+        LOGGER.debug("starting MQTT broker (port: {})", config.getMqttPort());
         mqttServer.startServer(serverConfig, List.of(new MqttInterceptHandler()), null, null, null);
     }
 
@@ -135,16 +127,6 @@ public class DigitalTwinEventForwarder {
     }
 
 
-    public void subscribe(Module module) {
-        modules.put(module.getId(), module);
-    }
-
-
-    public void unsubscribe(Module module) {
-        modules.remove(module.getId());
-    }
-
-
     private void handle(SmartService service, OperationInvokeEventMessage event) {
         kafkaBridge.publish(SmartServiceInvokedEvent.builder()
                 .moduleId(service.getModule().getId())
@@ -154,7 +136,7 @@ public class DigitalTwinEventForwarder {
                         .invocationId(event.getInvocationId())
                         .name(service.getName())
                         .serviceCatalogId(service.getServiceCatalogId())
-                        .endpoint(service.getOperationEndpoint())
+                        .endpoint(service.getExternalEndpoint())
                         .build())
                 .build());
     }
@@ -170,17 +152,17 @@ public class DigitalTwinEventForwarder {
                         .invocationId(event.getInvocationId())
                         .name(service.getName())
                         .serviceCatalogId(service.getServiceCatalogId())
-                        .endpoint(service.getOperationEndpoint())
+                        .endpoint(service.getExternalEndpoint())
                         .build())
                 .build());
     }
 
 
-    private SmartService findServiceByAasOperation(long moduleId, Reference reference) {
-        if (!modules.containsKey(moduleId)) {
+    private SmartService findServiceByAasOperation(String moduleId, Reference reference) {
+        if (!liveModuleRepository.contains(moduleId)) {
             return null;
         }
-        return modules.get(moduleId)
+        return liveModuleRepository.get(moduleId)
                 .getServices().stream()
                 .filter(x -> ReferenceHelper.equals(reference, x.getReference()))
                 .findFirst()
@@ -201,7 +183,7 @@ public class DigitalTwinEventForwarder {
             return;
         }
         String payload = msg.getPayload().toString(StandardCharsets.UTF_8);
-        long moduleId = Long.parseLong(matcher.group(1));
+        String moduleId = matcher.group(1);
         try {
             ExecuteEventMessage event = deserializer.read(payload, ExecuteEventMessage.class);
             SmartService service = findServiceByAasOperation(moduleId, event.getElement());

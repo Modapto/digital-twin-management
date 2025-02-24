@@ -27,7 +27,7 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 public abstract class AbstractSmartServicePayload {
     @JsonProperty("id")
-    private long serviceId;
+    private String serviceId;
     private String serviceCatalogId;
     private String invocationId;
     private String endpoint;

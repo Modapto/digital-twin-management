@@ -59,7 +59,7 @@ public class SmartServiceController {
 
     @Operation(summary = "Get smart service by ID", description = "Returns the details of an existing smart service by its ID")
     @GetMapping("/services/{serviceId}")
-    public SmartServiceResponseDto getSmartService(@PathVariable Long serviceId) {
+    public SmartServiceResponseDto getSmartService(@PathVariable String serviceId) {
         return SmartServiceMapper.toDto(smartServiceService.getSmartServiceById(serviceId));
     }
 
@@ -67,7 +67,7 @@ public class SmartServiceController {
     @Operation(summary = "Create a new smart service", description = "Creates a new smart service withing a service based on the provided details")
     @ApiResponse(responseCode = "200", description = "Smart service created successfully")
     @PostMapping("/modules/{moduleId}/services")
-    public ResponseEntity<SmartServiceResponseDto> createService(@PathVariable Long moduleId, @RequestBody SmartServiceRequestDto request) throws Exception {
+    public ResponseEntity<SmartServiceResponseDto> createService(@PathVariable String moduleId, @RequestBody SmartServiceRequestDto request) throws Exception {
         SmartServiceResponseDto result = SmartServiceMapper.toDto(smartServiceService.addServiceToModule(moduleId, request));
         return ResponseEntity
                 .created(URI.create("/services/" + result.getId()))
@@ -77,7 +77,7 @@ public class SmartServiceController {
 
     @Operation(summary = "Get services for a module", description = "Returns a list of services associated with the specified module")
     @GetMapping("/modules/{moduleId}/services")
-    public List<SmartServiceResponseDto> getServicesForModule(@PathVariable Long moduleId) {
+    public List<SmartServiceResponseDto> getServicesForModule(@PathVariable String moduleId) {
         return moduleService.getModuleById(moduleId).getServices().stream()
                 .map(SmartServiceMapper::toDto)
                 .toList();
@@ -88,7 +88,7 @@ public class SmartServiceController {
     @ApiResponse(responseCode = "204", description = "Service deleted from module successfully")
     @DeleteMapping("/modules/{moduleId}/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteServiceFromModule(@PathVariable Long moduleId, @PathVariable Long serviceId) throws Exception {
+    public void deleteServiceFromModule(@PathVariable String moduleId, @PathVariable String serviceId) throws Exception {
         smartServiceService.deleteServiceFromModule(moduleId, serviceId);
     }
 
@@ -97,7 +97,7 @@ public class SmartServiceController {
     @ApiResponse(responseCode = "204", description = "Smart service deleted successfully")
     @DeleteMapping("/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSmartService(@PathVariable Long serviceId) throws Exception {
+    public void deleteSmartService(@PathVariable String serviceId) throws Exception {
         smartServiceService.deleteService(serviceId);
     }
 }

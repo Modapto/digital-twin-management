@@ -105,6 +105,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -124,7 +125,7 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @Transactional
 class ModuleControllerTest {
@@ -168,6 +169,9 @@ class ModuleControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @LocalServerPort
+    private int port;
+
     @Autowired
     private DigitalTwinManagementConfig config;
 
@@ -197,6 +201,10 @@ class ModuleControllerTest {
     @DynamicPropertySource
     static void dynamicProperties(DynamicPropertyRegistry registry) {
         registry.add("dt-management.events.mqtt.port", () -> PortHelper.findFreePort());
+        //int port = PortHelper.findFreePort();
+        //registry.add("dt-management.port", () -> port);
+        //registry.add("local.server.port", () -> port);
+        //registry.add("server.port", () -> port);
     }
 
 
@@ -205,6 +213,7 @@ class ModuleControllerTest {
         if (initialized) {
             return;
         }
+        config.setPort(port);
         EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EMBEDDED_BOUNCING_BALL_FILENAME);
         EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EMBEDDED_BOUNCING_BALL_FILENAME);
         EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, EMBEDDED_BOUNCING_BALL_FILENAME);
@@ -326,7 +335,7 @@ class ModuleControllerTest {
                 .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andReturn();
-        long moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
         assertKafkaEvent(moduleCreatedEvent(moduleId));
     }
 
@@ -347,7 +356,7 @@ class ModuleControllerTest {
                 .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andReturn();
-        long moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
         assertKafkaEvent(moduleCreatedEvent(moduleId));
         environment.getSubmodels().get(0).getSubmodelElements().add(
                 new DefaultProperty.Builder()
@@ -622,25 +631,25 @@ class ModuleControllerTest {
     }
 
 
-    private EventInfo<ModuleCreatedEvent> moduleCreatedEvent(long moduleId) {
+    private EventInfo<ModuleCreatedEvent> moduleCreatedEvent(String moduleId) {
         return new EventInfo<>(ModuleCreatedEvent.class,
                 x -> checkCommonEventProperties(ModuleCreatedEvent.class, x)
-                        && Objects.equals(Long.toString(moduleId), x.getModuleId())
+                        && Objects.equals(moduleId, x.getModuleId())
                         && Objects.equals(moduleId, x.getPayload().getModuleId()));
     }
 
 
-    private EventInfo<ModuleDeletedEvent> moduleDeletedEvent(long moduleId) {
+    private EventInfo<ModuleDeletedEvent> moduleDeletedEvent(String moduleId) {
         return new EventInfo<>(ModuleDeletedEvent.class,
                 x -> checkCommonEventProperties(ModuleDeletedEvent.class, x)
-                        && Objects.equals(Long.toString(moduleId), x.getModuleId()));
+                        && Objects.equals(moduleId, x.getModuleId()));
     }
 
 
-    private EventInfo<ModuleUpdatedEvent> moduleUpdatedEvent(long moduleId) {
+    private EventInfo<ModuleUpdatedEvent> moduleUpdatedEvent(String moduleId) {
         return new EventInfo<>(ModuleUpdatedEvent.class,
                 x -> checkCommonEventProperties(ModuleUpdatedEvent.class, x)
-                        && Objects.equals(Long.toString(moduleId), x.getModuleId())
+                        && Objects.equals(moduleId, x.getModuleId())
                         && Objects.equals(moduleId, x.getPayload().getModuleId()));
     }
 
@@ -684,12 +693,12 @@ class ModuleControllerTest {
     }
 
 
-    private long extractIdFromLocationHeader(MvcResult result, String regex) {
+    private String extractIdFromLocationHeader(MvcResult result, String regex) {
         Matcher matcher = Pattern.compile(regex).matcher(result.getResponse().getHeader(HttpHeaders.LOCATION));
         if (!matcher.matches()) {
             fail(String.format("invalid response header (name: %s, value: %s)", HttpHeaders.LOCATION, result.getResponse().getHeader(HttpHeaders.LOCATION)));
         }
-        return Long.parseLong(matcher.group(1));
+        return matcher.group(1);
     }
 
     private class EventInfo<T extends AbstractEvent> {

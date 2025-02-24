@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import eu.modapto.digitaltwinmanagement.jpa.ListOfSubmodelElementConverter;
 import eu.modapto.digitaltwinmanagement.jpa.ReferenceConverter;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import jakarta.persistence.Convert;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.ElementCollection;
@@ -31,6 +32,7 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,11 +59,10 @@ import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 @DiscriminatorColumn(name = "service_type")
 public abstract class SmartService {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
     private String serviceCatalogId;
     private String name;
-    private String operationEndpoint;
     private String description;
     @Singular
     @Convert(converter = ListOfSubmodelElementConverter.class)
@@ -88,4 +89,17 @@ public abstract class SmartService {
     @JoinColumn(name = "module_id")
     @JsonIgnore
     private Module module;
+
+    @Transient
+    @JsonIgnore
+    public String getInternalEndpoint() {
+        return AddressTranslationHelper.getInternalEndpoint(this);
+    }
+
+
+    @Transient
+    @JsonIgnore
+    public String getExternalEndpoint() {
+        return AddressTranslationHelper.getExternalEndpoint(this);
+    }
 }

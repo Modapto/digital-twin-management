@@ -19,6 +19,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.web.embedded.tomcat.ConfigurableTomcatWebServerFactory;
+import org.springframework.boot.web.server.WebServerFactoryCustomizer;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 
@@ -29,7 +32,9 @@ import org.springframework.stereotype.Component;
 public class DigitalTwinManagementConfig {
     private String hostname;
 
-    private int externalPort;
+    private int port;
+
+    private boolean useProxy;
 
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
@@ -51,4 +56,9 @@ public class DigitalTwinManagementConfig {
 
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
+
+    @Bean
+    public WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> customizer() {
+        return x -> x.setPort(port);
+    }
 }

@@ -23,10 +23,13 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.exception.PersistenceExceptio
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinManager.class);
     private final Service service;
 
     public DigitalTwinConnectorInternal(DigitalTwinConfig config) throws Exception {
@@ -63,5 +66,12 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
     @Override
     public void stop() {
         service.stop();
+    }
+
+
+    @Override
+    public void recreate() {
+        LOGGER.info("Recreating Digital Twin... (type: INTERNAL, moduleId: {})", config.getModule().getId());
+        start();
     }
 }

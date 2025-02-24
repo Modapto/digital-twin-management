@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.model.event;
 
 import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
-import java.util.Objects;
 import lombok.EqualsAndHashCode;
 
 
@@ -51,7 +50,7 @@ public class ModuleUpdatedEvent extends AbstractEvent<ModuleDetailsPayload> {
 
         @Override
         public Builder payload(ModuleDetailsPayload value) {
-            getBuildingInstance().setModuleId(Objects.nonNull(value) ? Long.toString(value.getModuleId()) : null);
+            getBuildingInstance().setModuleId(value.getModuleId());
             return super.payload(value);
         }
     }

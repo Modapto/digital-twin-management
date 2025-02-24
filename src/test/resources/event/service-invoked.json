@@ -5,11 +5,11 @@
     "eventType": "Smart Service invoked",
     "topic": "smart-service-invoke",
     "timestamp": "2025-01-30T14:12:00",
-    "smartService": "2",
-    "module": "1",
+    "smartService": "example-service-id",
+    "module": "example-module-id",
     "results":
             {
-                "id": 2,
+                "id": "example-service-id",
                 "serviceCatalogId": "my-service-catalog-id",
                 "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
                 "name": "ExampleService",

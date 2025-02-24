@@ -52,7 +52,7 @@ public class ModuleService {
         kafkaBridge.publish(ModuleCreatedEvent.builder()
                 .payload(ModuleDetailsPayload.builder()
                         .moduleId(module.getId())
-                        .endpoint(module.getEndpoint())
+                        .endpoint(module.getExternalEndpoint())
                         .build())
                 .build());
         return moduleRepository.save(result);
@@ -64,7 +64,7 @@ public class ModuleService {
     }
 
 
-    public Module updateModule(Long moduleId, Module module) throws Exception {
+    public Module updateModule(String moduleId, Module module) throws Exception {
         moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
         module.setId(moduleId);
@@ -72,14 +72,14 @@ public class ModuleService {
         kafkaBridge.publish(ModuleUpdatedEvent.builder()
                 .payload(ModuleDetailsPayload.builder()
                         .moduleId(module.getId())
-                        .endpoint(module.getEndpoint())
+                        .endpoint(module.getExternalEndpoint())
                         .build())
                 .build());
         return moduleRepository.save(module);
     }
 
 
-    public void deleteModule(Long moduleId) throws Exception {
+    public void deleteModule(String moduleId) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
         dtManager.undeploy(module);
@@ -93,7 +93,7 @@ public class ModuleService {
     }
 
 
-    public Module getModuleById(Long moduleId) {
+    public Module getModuleById(String moduleId) {
         return moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
     }

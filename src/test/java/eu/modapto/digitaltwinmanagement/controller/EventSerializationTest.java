@@ -55,9 +55,9 @@ class EventSerializationTest {
     static void init() throws ValueFormatException {
         EVENT_SERVICE_INVOKED = SmartServiceInvokedEvent.builder()
                 .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
-                .moduleId(1)
+                .moduleId(EXAMPLE_MODULE_ID)
                 .payload(SmartServiceInvokedPayload.builder()
-                        .serviceId(2)
+                        .serviceId(EXAMPLE_SERVICE_ID)
                         .serviceCatalogId("my-service-catalog-id")
                         .name("ExampleService")
                         .endpoint("http://example.org/api/v3.0/xxxxx/foo")
@@ -70,9 +70,9 @@ class EventSerializationTest {
                 .build();
         EVENT_SERVICE_FINISHED = SmartServiceFinishedEvent.builder()
                 .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
-                .moduleId(1)
+                .moduleId(EXAMPLE_MODULE_ID)
                 .payload(SmartServiceFinishedPayload.builder()
-                        .serviceId(2)
+                        .serviceId(EXAMPLE_SERVICE_ID)
                         .serviceCatalogId("my-service-catalog-id")
                         .name("ExampleService")
                         .endpoint("http://example.org/api/v3.0/xxxxx/foo")

@@ -27,6 +27,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ModuleDetailsPayload {
     @JsonProperty("id")
-    private long moduleId;
+    private String moduleId;
     private String endpoint;
 }

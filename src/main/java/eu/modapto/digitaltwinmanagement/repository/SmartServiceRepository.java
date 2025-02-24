@@ -18,4 +18,4 @@ import eu.modapto.digitaltwinmanagement.model.SmartService;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 
-public interface SmartServiceRepository extends JpaRepository<SmartService, Long> {}
+public interface SmartServiceRepository extends JpaRepository<SmartService, String> {}

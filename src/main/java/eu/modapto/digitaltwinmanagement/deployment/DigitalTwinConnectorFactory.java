@@ -15,6 +15,9 @@
 package eu.modapto.digitaltwinmanagement.deployment;
 
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
+import eu.modapto.digitaltwinmanagement.model.Module;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -25,23 +28,33 @@ public class DigitalTwinConnectorFactory {
 
     private static final DeploymentType DEFAULT_DEPLOYMENT_TYPE = DeploymentType.DOCKER;
 
+    private final DigitalTwinManagementConfig config;
     private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
     @Autowired
-    public DigitalTwinConnectorFactory(DigitalTwinDeploymentDockerConfig dockerConfig) {
+    public DigitalTwinConnectorFactory(DigitalTwinManagementConfig config, DigitalTwinDeploymentDockerConfig dockerConfig) {
+        this.config = config;
         this.dockerConfig = dockerConfig;
     }
 
 
-    public DigitalTwinConnector create(DeploymentType type, DigitalTwinConfig config) throws Exception {
-        switch (Optional.ofNullable(type).orElse(DEFAULT_DEPLOYMENT_TYPE)) {
+    public DigitalTwinConnector create(Module module) throws Exception {
+        DigitalTwinConfig dtConfig = DigitalTwinConfig.builder()
+                .module(module)
+                .environmentContext(module.getActualModel())
+                .httpPort(module.getExternalPort())
+                .messageBusMqttHost(AddressTranslationHelper.getModuleToHostAddress(module))
+                .messageBusMqttPort(config.getMqttPort())
+                .assetConnections(module.getAssetConnections())
+                .build();
+        switch (Optional.ofNullable(module.getType()).orElse(DEFAULT_DEPLOYMENT_TYPE)) {
             case DOCKER -> {
-                return new DigitalTwinConnectorDocker(config, dockerConfig);
+                return new DigitalTwinConnectorDocker(dtConfig, dockerConfig);
             }
             case INTERNAL -> {
-                return new DigitalTwinConnectorInternal(config);
+                return new DigitalTwinConnectorInternal(dtConfig);
             }
-            default -> throw new IllegalArgumentException(String.format("Unsupported DT connector type '%s'", type));
+            default -> throw new IllegalArgumentException(String.format("Unsupported DT connector type '%s'", module.getType()));
         }
     }
 }

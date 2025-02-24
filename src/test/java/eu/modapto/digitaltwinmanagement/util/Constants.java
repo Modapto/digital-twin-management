@@ -38,8 +38,8 @@ public class Constants {
     public static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
 
     // REST
-    public static final String REGEX_LOCATION_HEADER_MODULE = "^/modules/(\\d+)$";
-    public static final String REGEX_LOCATION_HEADER_SERVICE = "^/services/(\\d+)$";
+    public static final String REGEX_LOCATION_HEADER_MODULE = "^/modules/([0-9a-fA-F-]{36})$";
+    public static final String REGEX_LOCATION_HEADER_SERVICE = "^/services/([0-9a-fA-F-]{36})$";
     public static final String REST_PATH_MODULES = "/modules";
     public static final String REST_PATH_SERVICES = "/services";
     public static final String REST_PATH_MODULE_TEMPLATE = REST_PATH_MODULES + "/%s";
@@ -64,24 +64,26 @@ public class Constants {
     public static final String EVENT_MODULE_UPDATED_FILENAME = "module-updated.json";
     public static final String EVENT_SERVICE_INVOKED_FILENAME = "service-invoked.json";
     public static final String EVENT_SERVICE_FINISHED_FILENAME = "service-finished.json";
+    public static final String EXAMPLE_MODULE_ID = "example-module-id";
+    public static final String EXAMPLE_SERVICE_ID = "example-service-id";
 
     public static final ModuleCreatedEvent EVENT_MODULE_CREATED = ModuleCreatedEvent.builder()
             .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
             .payload(ModuleDetailsPayload.builder()
-                    .moduleId(1)
+                    .moduleId(EXAMPLE_MODULE_ID)
                     .endpoint("http://example.org/api/v3.0")
                     .build())
             .build();
 
     public static final ModuleDeletedEvent EVENT_MODULE_DELETED = ModuleDeletedEvent.builder()
-            .moduleId(1)
+            .moduleId(EXAMPLE_MODULE_ID)
             .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
             .build();
 
     public static final ModuleUpdatedEvent EVENT_MODULE_UPDATED = ModuleUpdatedEvent.builder()
             .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
             .payload(ModuleDetailsPayload.builder()
-                    .moduleId(1)
+                    .moduleId(EXAMPLE_MODULE_ID)
                     .endpoint("http://example.org/api/v3.0")
                     .build())
             .build();

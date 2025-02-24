@@ -45,7 +45,7 @@ public class ModuleMapper {
     public static ModuleResponseDto toDto(Module module) {
         return ModuleResponseDto.builder()
                 .id(module.getId())
-                .endpoint(module.getEndpoint())
+                .endpoint(module.getExternalEndpoint())
                 .services(module.getServices().stream().map(SmartServiceMapper::toDto).toList())
                 .build();
     }

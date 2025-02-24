@@ -1,12 +1,12 @@
 {
-    "module": "1",
+    "module": "example-module-id",
     "timestamp": "2025-01-30T14:12:00",
     "priority": "LOW",
     "sourceComponent": "DT Management",
     "eventType": "Modapto Module created",
     "topic": "modapto-module-creation",
     "results": {
-        "id": 1,
+        "id": "example-module-id",
         "endpoint": "http://example.org/api/v3.0"
     }
 }

@@ -14,14 +14,17 @@
  */
 package eu.modapto.digitaltwinmanagement.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.jpa.EnvironmentContextConverter;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -44,12 +47,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Module {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
-    private String endpoint;
-
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<SmartService> services = new ArrayList<>();
 
@@ -67,7 +68,25 @@ public class Module {
     @Builder.Default
     private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
 
-    public SmartService getServiceById(Long serviceId) {
+    private int externalPort;
+
+    private String containerId;
+
+    @Transient
+    @JsonIgnore
+    public String getInternalEndpoint() {
+        return AddressTranslationHelper.getInternalEndpoint(this);
+    }
+
+
+    @Transient
+    @JsonIgnore
+    public String getExternalEndpoint() {
+        return AddressTranslationHelper.getExternalEndpoint(this);
+    }
+
+
+    public SmartService getServiceById(String serviceId) {
         return services.stream()
                 .filter(x -> Objects.equals(x.getId(), serviceId))
                 .findFirst()

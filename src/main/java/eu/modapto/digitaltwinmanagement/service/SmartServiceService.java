@@ -66,13 +66,13 @@ public class SmartServiceService {
     }
 
 
-    public SmartService getSmartServiceById(Long serviceId) {
+    public SmartService getSmartServiceById(String serviceId) {
         return smartServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("SmartService not found"));
     }
 
 
-    public SmartService updateSmartService(Long serviceId, SmartService service) {
+    public SmartService updateSmartService(String serviceId, SmartService service) {
         SmartService existingService = smartServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found"));
 
@@ -84,7 +84,7 @@ public class SmartServiceService {
     }
 
 
-    public SmartService addServiceToModule(Long moduleId, SmartServiceRequestDto request) throws Exception {
+    public SmartService addServiceToModule(String moduleId, SmartServiceRequestDto request) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
         SmartService service = getServiceDetails(request.getServiceCatalogId());
@@ -99,14 +99,14 @@ public class SmartServiceService {
     }
 
 
-    public void deleteService(Long serviceId) throws Exception {
+    public void deleteService(String serviceId) throws Exception {
         deleteService(smartServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId))));
 
     }
 
 
-    public void deleteServiceFromModule(Long moduleId, Long serviceId) throws Exception {
+    public void deleteServiceFromModule(String moduleId, String serviceId) throws Exception {
         SmartService service = smartServiceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Service not found (id: %s)", serviceId)));
 

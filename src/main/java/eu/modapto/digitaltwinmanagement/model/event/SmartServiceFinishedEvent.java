@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.model.event;
 
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceFinishedPayload;
-import java.util.Objects;
 import lombok.EqualsAndHashCode;
 
 
@@ -51,7 +50,7 @@ public class SmartServiceFinishedEvent extends AbstractEvent<SmartServiceFinishe
 
         @Override
         public Builder payload(SmartServiceFinishedPayload value) {
-            getBuildingInstance().setSmartService(Objects.nonNull(value) ? Long.toString(value.getServiceId()) : null);
+            getBuildingInstance().setSmartService(value.getServiceId());
             return super.payload(value);
         }
     }

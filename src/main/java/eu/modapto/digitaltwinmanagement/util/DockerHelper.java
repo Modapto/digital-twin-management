@@ -153,6 +153,17 @@ public class DockerHelper {
     }
 
 
+    public static boolean containerExists(DockerClient dockerClient, String containerId) {
+        try {
+            dockerClient.inspectContainerCmd(containerId).exec();
+            return true;
+        }
+        catch (Exception e) {
+            return false;
+        }
+    }
+
+
     public static void stopContainer(DockerClient dockerClient, String containerId) {
         dockerClient.stopContainerCmd(containerId).exec();
     }
@@ -260,12 +271,12 @@ public class DockerHelper {
 
 
     public static String getContainerName(Module module) {
-        return String.format("modapto-module-%d", module.getId());
+        return String.format("modapto-module-%s", module.getId());
     }
 
 
     public static String getContainerName(RestBasedSmartService service) {
-        return String.format("modapto-service-%d", service.getId());
+        return String.format("modapto-service-%s", service.getId());
     }
 
 

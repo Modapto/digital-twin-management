@@ -77,14 +77,14 @@ public class ModuleController {
 
     @Operation(summary = "Get module by ID", description = "Returns an existing module by its ID")
     @GetMapping("/{moduleId}")
-    public ModuleResponseDto getModule(@PathVariable Long moduleId) {
+    public ModuleResponseDto getModule(@PathVariable String moduleId) {
         return ModuleMapper.toDto(moduleService.getModuleById(moduleId));
     }
 
 
     @Operation(summary = "Get module details by ID", description = "Returns the details of an existing module by its ID")
     @GetMapping("/{moduleId}/details")
-    public ModuleDetailsResponseDto getModuleDetails(@PathVariable Long moduleId) throws SerializationException {
+    public ModuleDetailsResponseDto getModuleDetails(@PathVariable String moduleId) throws SerializationException {
         return ModuleMapper.toDetailsDto(moduleService.getModuleById(moduleId));
     }
 
@@ -92,7 +92,7 @@ public class ModuleController {
     @Operation(summary = "Update an existing module", description = "Updates the details of an existing module")
     @ApiResponse(responseCode = "200", description = "Module updated successfully")
     @PutMapping("/{moduleId}")
-    public ModuleResponseDto updateModule(@PathVariable Long moduleId, @RequestBody ModuleRequestDto module) throws Exception {
+    public ModuleResponseDto updateModule(@PathVariable String moduleId, @RequestBody ModuleRequestDto module) throws Exception {
         return ModuleMapper.toDto(moduleService.updateModule(moduleId, ModuleMapper.toEntity(module)));
     }
 
@@ -101,7 +101,7 @@ public class ModuleController {
     @ApiResponse(responseCode = "204", description = "Module deleted successfully")
     @DeleteMapping("/{moduleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteModule(@PathVariable Long moduleId) throws Exception {
+    public void deleteModule(@PathVariable String moduleId) throws Exception {
         moduleService.deleteModule(moduleId);
     }
 

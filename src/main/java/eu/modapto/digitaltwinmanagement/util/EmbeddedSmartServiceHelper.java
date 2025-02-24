@@ -216,13 +216,13 @@ public class EmbeddedSmartServiceHelper {
                 .findFirst();
         if (simulationModel.isEmpty()) {
             throw new IllegalArgumentException(String.format(
-                    "No simulation model found in AAS model for service (service id: %d, service name: %s)",
+                    "No simulation model found in AAS model for service (service id: %s, service name: %s)",
                     service.getId(),
                     service.getName()));
         }
         submodel.getSubmodelElements().remove(simulationModel.get());
         environmentContext.getFiles().removeIf(x -> Objects.equals(x.getPath(), getFmuFilename(service)));
-        service.setOperationEndpoint(null);
+        service.setReference(null);
     }
 
 

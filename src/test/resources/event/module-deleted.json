@@ -1,5 +1,5 @@
 {
-    "module": "1",
+    "module": "example-module-id",
     "timestamp": "2025-01-30T14:12:00",
     "priority": "LOW",
     "sourceComponent": "DT Management",

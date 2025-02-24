@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(name = "ModuleResponse")
 public class ModuleResponseDto {
-    private long id;
+    private String id;
     private String endpoint;
     private List<SmartServiceResponseDto> services;
 }

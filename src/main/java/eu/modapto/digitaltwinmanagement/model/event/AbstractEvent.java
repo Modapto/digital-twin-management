@@ -58,11 +58,6 @@ public abstract class AbstractEvent<T> {
         }
 
 
-        public B moduleId(long value) {
-            return moduleId(Long.toString(value));
-        }
-
-
         public B payload(T value) {
             getBuildingInstance().setPayload(value);
             return getSelf();

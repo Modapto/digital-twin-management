@@ -45,8 +45,8 @@ public abstract class DigitalTwinConnector {
                 .host(config.getMessageBusMqttHost())
                 .internal(false)
                 .port(config.getMessageBusMqttPort())
-                .topicPrefix(String.format("module/%d/", config.getModule().getId()))
-                .clientId(String.format("module-%d-%s", config.getModule().getId(), IdHelper.uuidAlphanumeric8()))
+                .topicPrefix(String.format("module/%s/", config.getModule().getId()))
+                .clientId(String.format("module-%s-%s", config.getModule().getId(), IdHelper.uuidAlphanumeric8()))
                 .build();
     }
 
@@ -60,4 +60,7 @@ public abstract class DigitalTwinConnector {
 
 
     public abstract void stop();
+
+
+    public abstract void recreate();
 }

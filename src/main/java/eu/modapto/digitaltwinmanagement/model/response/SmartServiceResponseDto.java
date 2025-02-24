@@ -31,7 +31,7 @@ import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 @AllArgsConstructor
 @Schema(name = "SmartServiceResponse")
 public class SmartServiceResponseDto {
-    private long id;
+    private String id;
     private String serviceCatalogId;
     private String endpoint;
     private String name;
