@@ -80,6 +80,10 @@ public class HttpProxyController {
             LOGGER.debug("error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(String.format("Failed to read payload (reason: %s)", e.getMessage()));
         }
+        catch (Exception e) {
+            LOGGER.debug("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(String.format("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", e.getMessage()));
+        }
     }
 
 

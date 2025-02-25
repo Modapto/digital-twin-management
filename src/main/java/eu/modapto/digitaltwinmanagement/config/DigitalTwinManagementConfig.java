@@ -38,6 +38,8 @@ public class DigitalTwinManagementConfig {
 
     private boolean useProxy;
 
+    private boolean exposeDTsViaContainerName;
+
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 

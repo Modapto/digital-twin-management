@@ -50,10 +50,15 @@ public class AddressTranslationHelper {
                         config.getExternalPort(),
                         module.getId(),
                         MODULE_DEFAULT_PATH)
-                : String.format("http://%s:%d%s",
-                        config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
-                        module.getExternalPort(),
-                        MODULE_DEFAULT_PATH);
+                : config.isExposeDTsViaContainerName()
+                        ? String.format("http://%s:%d%s",
+                                DockerHelper.getContainerName(module),
+                                DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL,
+                                MODULE_DEFAULT_PATH)
+                        : String.format("http://%s:%d%s",
+                                config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
+                                module.getExternalPort(),
+                                MODULE_DEFAULT_PATH);
     }
 
 
@@ -157,7 +162,7 @@ public class AddressTranslationHelper {
     }
 
 
-    private static final String getHostname() {
+    private static String getHostname() {
         return System.getenv("HOSTNAME");
     }
 
