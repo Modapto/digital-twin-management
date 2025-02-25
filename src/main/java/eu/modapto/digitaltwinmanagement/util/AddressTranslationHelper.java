@@ -29,6 +29,8 @@ import eu.modapto.digitaltwinmanagement.model.SmartService;
 public class AddressTranslationHelper {
     public static final String LOCALHOST = "localhost";
     public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
+    private static final String PROTOCOL_SEPARATOR = "://";
+    private static final String PREFIX_HTTP = "http" + PROTOCOL_SEPARATOR;
     public static final String MODULE_DEFAULT_PATH = "/api/v3.0";
     public static final String SERVICE_DEFAULT_PATH = "/submodels/%s/submodel-elements/%s";
     private static DigitalTwinManagementConfig config;
@@ -44,21 +46,20 @@ public class AddressTranslationHelper {
 
 
     public static String getExternalEndpoint(Module module) {
-        return config.isUseProxy()
-                ? String.format("%s:%d/digital-twins/%s%s",
-                        config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
-                        config.getExternalPort(),
-                        module.getId(),
-                        MODULE_DEFAULT_PATH)
-                : config.isExposeDTsViaContainerName()
-                        ? String.format("http://%s:%d%s",
-                                DockerHelper.getContainerName(module),
-                                DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL,
-                                MODULE_DEFAULT_PATH)
-                        : String.format("http://%s:%d%s",
-                                config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
-                                module.getExternalPort(),
-                                MODULE_DEFAULT_PATH);
+        String baseUrl;
+        if (config.isUseProxy()) {
+            baseUrl = config.getHostname();
+            if (config.getExternalPort() > 0) {
+                baseUrl += ":" + config.getExternalPort();
+            }
+            baseUrl += "/digital-twins/" + module.getId();
+        }
+        else {
+            baseUrl = config.isExposeDTsViaContainerName()
+                    ? String.format("http://%s:%d", DockerHelper.getContainerName(module), DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL)
+                    : String.format("http://%s:%d", config.getHostname(), module.getExternalPort());
+        }
+        return baseUrl + MODULE_DEFAULT_PATH;
     }
 
 
@@ -151,6 +152,14 @@ public class AddressTranslationHelper {
         else {
             return new Address(service.getHttpEndpoint());
         }
+    }
+
+
+    public static String ensureProtocolPresent(String url) {
+        if (url.contains(PROTOCOL_SEPARATOR)) {
+            return url;
+        }
+        return PREFIX_HTTP + url;
     }
 
 

@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.config;
 
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,11 +62,8 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
 
-    public int getExternalPort() {
-        if (externalPort <= 0) {
-            return port;
-        }
-        return externalPort;
+    public String getHostname() {
+        return AddressTranslationHelper.ensureProtocolPresent(hostname);
     }
 
 
