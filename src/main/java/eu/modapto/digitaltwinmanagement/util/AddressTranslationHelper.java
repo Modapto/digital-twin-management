@@ -45,13 +45,13 @@ public class AddressTranslationHelper {
 
     public static String getExternalEndpoint(Module module) {
         return config.isUseProxy()
-                ? String.format("http://%s:%d/digital-twins/%s%s",
-                        config.getHostname(),
-                        config.getPort(),
+                ? String.format("%s:%d/digital-twins/%s%s",
+                        config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
+                        config.getExternalPort(),
                         module.getId(),
                         MODULE_DEFAULT_PATH)
                 : String.format("http://%s:%d%s",
-                        config.getHostname(),
+                        config.getHostname().startsWith("http") ? config.getHostname() : "http://" + config.getHostname(),
                         module.getExternalPort(),
                         MODULE_DEFAULT_PATH);
     }

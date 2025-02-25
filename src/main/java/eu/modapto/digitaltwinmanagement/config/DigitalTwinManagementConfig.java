@@ -34,6 +34,8 @@ public class DigitalTwinManagementConfig {
 
     private int port;
 
+    private int externalPort;
+
     private boolean useProxy;
 
     @Value("${dt-management.deployment.type}")
@@ -56,6 +58,14 @@ public class DigitalTwinManagementConfig {
 
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
+
+    public int getExternalPort() {
+        if (externalPort <= 0) {
+            return port;
+        }
+        return externalPort;
+    }
+
 
     @Bean
     public WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> customizer() {
