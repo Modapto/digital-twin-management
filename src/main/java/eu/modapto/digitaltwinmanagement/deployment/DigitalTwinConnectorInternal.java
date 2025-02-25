@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorInternal.class);
     private final Service service;
 
     public DigitalTwinConnectorInternal(DigitalTwinConfig config) throws Exception {

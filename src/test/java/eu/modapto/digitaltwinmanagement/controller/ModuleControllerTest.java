@@ -201,15 +201,11 @@ class ModuleControllerTest {
     @DynamicPropertySource
     static void dynamicProperties(DynamicPropertyRegistry registry) {
         registry.add("dt-management.events.mqtt.port", () -> PortHelper.findFreePort());
-        //int port = PortHelper.findFreePort();
-        //registry.add("dt-management.port", () -> port);
-        //registry.add("local.server.port", () -> port);
-        //registry.add("server.port", () -> port);
     }
 
 
     @BeforeEach
-    private void init() throws IOException, Exception {
+    void init() throws Exception {
         if (initialized) {
             return;
         }
