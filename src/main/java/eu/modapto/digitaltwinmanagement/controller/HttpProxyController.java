@@ -82,6 +82,9 @@ public class HttpProxyController {
             }
             return ResponseEntity
                     .status(actualRespose.getStatusCode())
+                    .contentType(actualRespose.getHeaders().getContentType())
+                    .contentLength(actualRespose.getHeaders().getContentLength())
+                    .location(actualRespose.getHeaders().getLocation())
                     .body(actualRespose.getBody());
         }
         catch (HttpClientErrorException e) {
