@@ -223,7 +223,7 @@ class DeploymentTest {
 
 
     @BeforeEach
-    private void resetMocks() {
+    void resetMocks() {
         MockitoAnnotations.openMocks(this);
     }
 
