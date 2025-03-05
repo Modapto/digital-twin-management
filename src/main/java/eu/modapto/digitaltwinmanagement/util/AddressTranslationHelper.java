@@ -16,6 +16,7 @@ package eu.modapto.digitaltwinmanagement.util;
 
 import de.fraunhofer.iosb.ilt.faaast.service.model.SubmodelElementIdentifier;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorDocker;
@@ -29,6 +30,8 @@ import eu.modapto.digitaltwinmanagement.model.SmartService;
 public class AddressTranslationHelper {
     public static final String LOCALHOST = "localhost";
     public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
+    private static final String PROTOCOL_SEPARATOR = "://";
+    private static final String PREFIX_HTTP = "http" + PROTOCOL_SEPARATOR;
     public static final String MODULE_DEFAULT_PATH = "/api/v3.0";
     public static final String SERVICE_DEFAULT_PATH = "/submodels/%s/submodel-elements/%s";
     private static DigitalTwinManagementConfig config;
@@ -44,16 +47,21 @@ public class AddressTranslationHelper {
 
 
     public static String getExternalEndpoint(Module module) {
-        return config.isUseProxy()
-                ? String.format("http://%s:%d/digital-twins/%s%s",
-                        config.getHostname(),
-                        config.getPort(),
-                        module.getId(),
-                        MODULE_DEFAULT_PATH)
-                : String.format("http://%s:%d%s",
-                        config.getHostname(),
-                        module.getExternalPort(),
-                        MODULE_DEFAULT_PATH);
+        String baseUrl;
+        if (config.isUseProxy()) {
+            baseUrl = config.getHostname();
+            if (config.getExternalPort() > 0) {
+                baseUrl += ":" + config.getExternalPort();
+            }
+            baseUrl += "/digital-twins/" + module.getId();
+        }
+        else {
+            baseUrl = ensureProtocolPresent(
+                    config.isExposeDTsViaContainerName()
+                            ? String.format("%s:%d", DockerHelper.getContainerName(module), DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL)
+                            : String.format("%s:%d", config.getHostname(), module.getExternalPort()));
+        }
+        return baseUrl + MODULE_DEFAULT_PATH;
     }
 
 
@@ -119,7 +127,9 @@ public class AddressTranslationHelper {
             return LOCALHOST;
         }
         if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
-            return getHostname();
+            return StringHelper.isBlank(config.getMqttHostFromContainer())
+                    ? config.getDockerContainerName()
+                    : config.getMqttHostFromContainer();
         }
         throw new IllegalStateException();
     }
@@ -149,16 +159,19 @@ public class AddressTranslationHelper {
     }
 
 
+    public static String ensureProtocolPresent(String url) {
+        if (url.contains(PROTOCOL_SEPARATOR)) {
+            return url;
+        }
+        return PREFIX_HTTP + url;
+    }
+
+
     private static String getServiceUrlPath(SmartService service) {
         SubmodelElementIdentifier identifier = SubmodelElementIdentifier.fromReference(service.getReference());
         return String.format(SERVICE_DEFAULT_PATH,
                 EncodingHelper.base64UrlEncode(identifier.getSubmodelId()),
                 identifier.getIdShortPath());
-    }
-
-
-    private static final String getHostname() {
-        return System.getenv("HOSTNAME");
     }
 
 

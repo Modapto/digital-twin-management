@@ -69,7 +69,23 @@ public class HttpProxyController {
         String remainingPath = request.getRequestURI().substring(request.getRequestURI().indexOf(moduleId) + moduleId.length());
         String url = AddressTranslationHelper.getHostToModuleAddress(module, module.getExternalPort()).asUrl() + remainingPath;
         try {
-            return restTemplate.exchange(url, method, copyBodyAndHeaders(request), byte[].class);
+            LOGGER.trace("executing proxy call to DT (url: {})", url);
+            ResponseEntity<byte[]> actualRespose = restTemplate.exchange(url, method, copyBodyAndHeaders(request), byte[].class);
+            try {
+                LOGGER.debug("received response from DT (url: {}, status code: {}, payload: {})",
+                        url,
+                        actualRespose.getStatusCode(),
+                        new String(actualRespose.getBody()));
+            }
+            catch (Exception e) {
+                LOGGER.debug("failed to log response", e);
+            }
+            return ResponseEntity
+                    .status(actualRespose.getStatusCode())
+                    .contentType(actualRespose.getHeaders().getContentType())
+                    .contentLength(actualRespose.getHeaders().getContentLength())
+                    .location(actualRespose.getHeaders().getLocation())
+                    .body(actualRespose.getBody());
         }
         catch (HttpClientErrorException e) {
             return ResponseEntity.status(e.getStatusCode())
@@ -79,6 +95,10 @@ public class HttpProxyController {
         catch (IOException e) {
             LOGGER.debug("error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(String.format("Failed to read payload (reason: %s)", e.getMessage()));
+        }
+        catch (Exception e) {
+            LOGGER.debug("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(String.format("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", e.getMessage()));
         }
     }
 

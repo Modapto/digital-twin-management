@@ -21,6 +21,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.exception.MessageBusException;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.exception.PersistenceException;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -32,18 +33,18 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorInternal.class);
     private final Service service;
 
-    public DigitalTwinConnectorInternal(DigitalTwinConfig config) throws Exception {
-        super(config);
+    public DigitalTwinConnectorInternal(DigitalTwinManagementConfig config, DigitalTwinConfig dtConfig) throws Exception {
+        super(config, dtConfig);
         service = new Service(ServiceConfig.builder()
-                .endpoint(getHttpEndpointConfig(config.getHttpPort()))
+                .endpoint(getHttpEndpointConfig(dtConfig.getHttpPort()))
                 .messageBus(getMessageBusMqttConfig())
                 .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())
-                .assetConnections(config.getAssetConnections())
+                .assetConnections(dtConfig.getAssetConnections())
                 .persistence(PersistenceInMemoryConfig.builder()
-                        .initialModel(config.getEnvironmentContext().getEnvironment())
+                        .initialModel(dtConfig.getEnvironmentContext().getEnvironment())
                         .build())
                 .fileStorage(FileStorageInMemoryConfig.builder()
-                        .files(config.getEnvironmentContext().getFiles().stream()
+                        .files(dtConfig.getEnvironmentContext().getFiles().stream()
                                 .collect(Collectors.toMap(
                                         x -> x.getPath(),
                                         x -> x.getFileContent())))
@@ -71,7 +72,7 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
 
     @Override
     public void recreate() {
-        LOGGER.info("Recreating Digital Twin... (type: INTERNAL, moduleId: {})", config.getModule().getId());
+        LOGGER.info("Recreating Digital Twin... (type: INTERNAL, moduleId: {})", dtConfig.getModule().getId());
         start();
     }
 }

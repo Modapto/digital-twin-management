@@ -16,6 +16,7 @@ package eu.modapto.digitaltwinmanagement.model;
 
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.exception.NetworkAddressException;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import java.net.MalformedURLException;
 import java.net.URL;
 import lombok.AllArgsConstructor;
@@ -27,8 +28,6 @@ import lombok.Data;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class Address {
-    private static final String PROTOCOL_SEPARATOR = "://";
-    private static final String PREFIX_HTTP = "http" + PROTOCOL_SEPARATOR;
 
     private String host;
     private String path;
@@ -55,7 +54,7 @@ public class Address {
         if (!StringHelper.isBlank(path)) {
             result += path;
         }
-        return ensureProtocolPresent(result);
+        return AddressTranslationHelper.ensureProtocolPresent(result);
     }
 
 
@@ -64,15 +63,7 @@ public class Address {
         if (port > 0) {
             result += ":" + port;
         }
-        return ensureProtocolPresent(result);
-    }
-
-
-    private static String ensureProtocolPresent(String url) {
-        if (url.contains(PROTOCOL_SEPARATOR)) {
-            return url;
-        }
-        return PREFIX_HTTP + url;
+        return AddressTranslationHelper.ensureProtocolPresent(result);
     }
 
 

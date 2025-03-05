@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement.config;
 
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
+import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,19 +35,34 @@ public class DigitalTwinManagementConfig {
 
     private int port;
 
+    private int externalPort;
+
     private boolean useProxy;
+
+    private boolean exposeDTsViaContainerName;
+
+    private boolean includeDockerLogs;
+
+    @Value("${dt-management.deployment.liveliness-check.timeout}")
+    private int livelinessCheckTimeout;
+
+    @Value("${dt-management.deployment.liveliness-check.interval}")
+    private int livelinessCheckInterval;
 
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 
-    @Value("${modapto.service-catalogue.host}")
-    private String serviceCatalogueHost;
+    @Value("${dt-management.docker.container.name}")
+    private String dockerContainerName;
 
-    @Value("${modapto.service-catalogue.path}")
-    private String serviceCataloguePath;
+    @Value("${dt-management.docker.network}")
+    private String dockerNetwork;
 
     @Value("${dt-management.events.mqtt.host:localhost}")
     private String mqttHost;
+
+    @Value("${dt-management.events.mqtt.host-from-container:}")
+    private String mqttHostFromContainer;
 
     @Value("${dt-management.events.mqtt.port}")
     private int mqttPort;
@@ -56,6 +72,23 @@ public class DigitalTwinManagementConfig {
 
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
+
+    @Value("${dt.deployment.docker.image:ghcr.io/modapto/digital-twin:latest}")
+    private String dtDockerImage;
+
+    @Value("${dt.deployment.docker.tmpDirHostMapping:}")
+    private String dtDockerTmpDirHostMapping;
+
+    @Value("${modapto.service-catalogue.host}")
+    private String serviceCatalogueHost;
+
+    @Value("${modapto.service-catalogue.path}")
+    private String serviceCataloguePath;
+
+    public String getHostname() {
+        return AddressTranslationHelper.ensureProtocolPresent(hostname);
+    }
+
 
     @Bean
     public WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> customizer() {
