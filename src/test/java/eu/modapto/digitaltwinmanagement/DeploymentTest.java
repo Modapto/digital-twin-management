@@ -272,7 +272,7 @@ class DeploymentTest {
 
 
     @AfterAll
-    public static void teardown() throws Exception {
+    static void teardown() throws Exception {
         if (Objects.nonNull(dockerClient)) {
             dockerClient.close();
         }
@@ -281,7 +281,7 @@ class DeploymentTest {
 
 
     @AfterEach
-    public void cleanUpDockerContainers() {
+    void cleanUpDockerContainers() {
         List<Container> containers = dockerClient.listContainersCmd().withShowAll(true).exec();
         for (Container container: containers) {
             if (Objects.equals(config.getDtDockerImage(), container.getImage())) {
