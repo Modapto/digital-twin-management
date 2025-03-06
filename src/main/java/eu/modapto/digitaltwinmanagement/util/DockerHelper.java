@@ -71,7 +71,17 @@ public class DockerHelper {
 
     public static DockerClient newClient() {
         try {
-            DockerClientConfig clientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
+            DefaultDockerClientConfig.Builder clientConfigBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder();
+            if (!StringHelper.isBlank(config.getDockerRegistryUrl())) {
+                clientConfigBuilder.withRegistryUrl(config.getDockerRegistryUrl());
+            }
+            if (!StringHelper.isBlank(config.getDockerRegistryUsername())) {
+                clientConfigBuilder.withRegistryUsername(config.getDockerRegistryUsername());
+            }
+            if (!StringHelper.isBlank(config.getDockerRegistryPassword())) {
+                clientConfigBuilder.withRegistryPassword(config.getDockerRegistryPassword());
+            }
+            DockerClientConfig clientConfig = clientConfigBuilder.build();
             DockerClient client = DockerClientBuilder
                     .getInstance(clientConfig)
                     .withDockerHttpClient(new ApacheDockerHttpClient.Builder()

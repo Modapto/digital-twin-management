@@ -52,6 +52,15 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 
+    @Value("${dt-management.docker.registry.url}")
+    private String dockerRegistryUrl;
+
+    @Value("${dt-management.docker.registry.username}")
+    private String dockerRegistryUsername;
+
+    @Value("${dt-management.docker.registry.password}")
+    private String dockerRegistryPassword;
+
     @Value("${dt-management.docker.container.name}")
     private String dockerContainerName;
 

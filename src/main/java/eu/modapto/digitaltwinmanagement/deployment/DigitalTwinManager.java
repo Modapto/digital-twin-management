@@ -309,6 +309,7 @@ public class DigitalTwinManager {
 
     private int startContainerForInternalService(InternalSmartService service) throws URISyntaxException {
         int port = PortHelper.findFreePort();
+        LOGGER.debug("starting docker container for internal smart service (serviceId: {}, image: {}, port: {})", service.getId(), service.getImage(), port);
         String containerId = DockerHelper.startContainer(
                 dockerClient,
                 DockerHelper.ContainerInfo.builder()
@@ -318,6 +319,7 @@ public class DigitalTwinManager {
                         .build());
         DockerHelper.subscribeToLogs(dockerClient, containerId, "service-" + service.getId());
         service.setContainerId(containerId);
+        LOGGER.info("docker container for internal smart service started (serviceId: {}, containerId: {})", service.getId(), containerId);
         waitUntilHttpServerIsRunning(
                 HttpMethod.OPTIONS,
                 AddressTranslationHelper.getHostToInternalService(service, port).asUrl(),
