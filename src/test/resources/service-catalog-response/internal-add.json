@@ -37,7 +37,7 @@
     ],
     "container":
             {
-                "image": "internal-service-mock:latest",
+                "image": "${registry.url}/internal-service-mock:latest",
                 "internalPort": "5001"
             },
     "restDetails":

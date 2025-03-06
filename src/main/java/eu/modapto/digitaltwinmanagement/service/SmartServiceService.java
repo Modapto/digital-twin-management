@@ -29,6 +29,8 @@ import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class SmartServiceService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(SmartServiceService.class);
     private static final Random random = new Random();
 
     private final DigitalTwinManagementConfig config;
@@ -126,6 +129,8 @@ public class SmartServiceService {
 
 
     private SmartService getServiceDetails(String serviceCatalogId) {
+        LOGGER.debug("fetching service details from servie catalog (serviceCatalogId: {}, serviceCatalogHost: {}, serviceCatalogPath: {})",
+                serviceCatalogId, config.getServiceCatalogueHost(), config.getServiceCataloguePath());
         SmartService result = RestClient.create(config.getServiceCatalogueHost())
                 .get()
                 .uri(String.format(config.getServiceCataloguePath(), serviceCatalogId))

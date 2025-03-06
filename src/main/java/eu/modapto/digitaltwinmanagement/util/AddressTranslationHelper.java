@@ -16,6 +16,7 @@ package eu.modapto.digitaltwinmanagement.util;
 
 import de.fraunhofer.iosb.ilt.faaast.service.model.SubmodelElementIdentifier;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinConnectorDocker;
@@ -55,9 +56,10 @@ public class AddressTranslationHelper {
             baseUrl += "/digital-twins/" + module.getId();
         }
         else {
-            baseUrl = config.isExposeDTsViaContainerName()
-                    ? String.format("http://%s:%d", DockerHelper.getContainerName(module), DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL)
-                    : String.format("http://%s:%d", config.getHostname(), module.getExternalPort());
+            baseUrl = ensureProtocolPresent(
+                    config.isExposeDTsViaContainerName()
+                            ? String.format("%s:%d", DockerHelper.getContainerName(module), DigitalTwinConnectorDocker.CONTAINER_HTTP_PORT_INTERNAL)
+                            : String.format("%s:%d", config.getHostname(), module.getExternalPort()));
         }
         return baseUrl + MODULE_DEFAULT_PATH;
     }
@@ -125,7 +127,9 @@ public class AddressTranslationHelper {
             return LOCALHOST;
         }
         if (hostType == DeploymentType.DOCKER && moduleType == DeploymentType.DOCKER) {
-            return getHostname();
+            return StringHelper.isBlank(config.getMqttHostFromContainer())
+                    ? config.getDockerContainerName()
+                    : config.getMqttHostFromContainer();
         }
         throw new IllegalStateException();
     }
@@ -168,11 +172,6 @@ public class AddressTranslationHelper {
         return String.format(SERVICE_DEFAULT_PATH,
                 EncodingHelper.base64UrlEncode(identifier.getSubmodelId()),
                 identifier.getIdShortPath());
-    }
-
-
-    private static String getHostname() {
-        return System.getenv("HOSTNAME");
     }
 
 

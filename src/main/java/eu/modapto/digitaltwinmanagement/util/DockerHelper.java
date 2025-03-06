@@ -15,34 +15,37 @@
 package eu.modapto.digitaltwinmanagement.util;
 
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.BuildImageCmd;
 import com.github.dockerjava.api.command.BuildImageResultCallback;
 import com.github.dockerjava.api.command.PullImageCmd;
 import com.github.dockerjava.api.model.AccessMode;
 import com.github.dockerjava.api.model.Bind;
+import com.github.dockerjava.api.model.Container;
+import com.github.dockerjava.api.model.ContainerNetwork;
 import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Link;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
+import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.command.PushImageResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
-import eu.modapto.digitaltwinmanagement.config.DockerConfig;
-import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.exception.DockerException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import java.io.File;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -53,7 +56,9 @@ import org.slf4j.LoggerFactory;
 
 public class DockerHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockerHelper.class);
+    private static final Logger LOGGER_DOCKER = LoggerFactory.getLogger("Docker");
     private static final String DEFAULT_TAG = "latest";
+    private static final Map<String, ResultCallback.Adapter<Frame>> loggingCallbacks = new ConcurrentHashMap<>();
     private static DigitalTwinManagementConfig config;
 
     private DockerHelper() {}
@@ -65,33 +70,98 @@ public class DockerHelper {
 
 
     public static DockerClient newClient() {
-        return newClient(DockerConfig.builder().build());
+        try {
+            DefaultDockerClientConfig.Builder clientConfigBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder();
+            if (!StringHelper.isBlank(config.getDockerRegistryUrl())) {
+                clientConfigBuilder.withRegistryUrl(config.getDockerRegistryUrl());
+            }
+            if (!StringHelper.isBlank(config.getDockerRegistryUsername())) {
+                clientConfigBuilder.withRegistryUsername(config.getDockerRegistryUsername());
+            }
+            if (!StringHelper.isBlank(config.getDockerRegistryPassword())) {
+                clientConfigBuilder.withRegistryPassword(config.getDockerRegistryPassword());
+            }
+            DockerClientConfig clientConfig = clientConfigBuilder.build();
+            DockerClient client = DockerClientBuilder
+                    .getInstance(clientConfig)
+                    .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
+                            .dockerHost(clientConfig.getDockerHost())
+                            .sslConfig(clientConfig.getSSLConfig())
+                            .build())
+                    .build();
+            client.pingCmd().exec();
+            return client;
+        }
+        catch (Exception e) {
+            throw new DockerException("Error creating new docker client", e);
+        }
     }
 
 
-    public static DockerClient newClient(DockerConfig config) {
+    public static DockerClient newClient(String registryUrl) {
         try {
-            DefaultDockerClientConfig.Builder clientConfig = DefaultDockerClientConfig
-                    .createDefaultConfigBuilder()
-                    //.withDockerTlsVerify(false)
-                    .withRegistryUrl(config.getRegistryUrl());
-            if (!StringHelper.isBlank(config.getRegistryUsername())) {
-                clientConfig.withRegistryUsername(config.getRegistryUsername());
-            }
-            if (!StringHelper.isBlank(config.getRegistryPassword())) {
-                clientConfig.withRegistryPassword(config.getRegistryPassword());
-            }
-            DockerClient result = DockerClientBuilder
-                    .getInstance(clientConfig.build())
+            DockerClientConfig clientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                    .withRegistryUrl(registryUrl)
+                    .build();
+            DockerClient client = DockerClientBuilder
+                    .getInstance(clientConfig)
                     .withDockerHttpClient(new ApacheDockerHttpClient.Builder()
-                            .dockerHost(new URI(config.getHost()))
+                            .dockerHost(clientConfig.getDockerHost())
+                            .sslConfig(clientConfig.getSSLConfig())
                             .build())
                     .build();
-            result.pingCmd().exec();
-            return result;
+            client.pingCmd().exec();
+            return client;
         }
         catch (Exception e) {
-            throw new IllegalArgumentException("Error creating new docker client", e);
+            throw new DockerException("Error creating new docker client", e);
+        }
+    }
+
+
+    public static void subscribeToLogs(DockerClient client, String containerId) {
+        subscribeToLogs(client, containerId, containerId);
+    }
+
+
+    public static void subscribeToLogs(DockerClient client, String containerId, String logPrefix) {
+        if (!config.isIncludeDockerLogs()) {
+            return;
+        }
+        ResultCallback.Adapter<Frame> callback = new ResultCallback.Adapter<>() {
+            @Override
+            public void onNext(Frame frame) {
+                LOGGER_DOCKER.info("[{}] {}", logPrefix, new String(frame.getPayload()));
+            }
+        };
+        Thread thread = new Thread(() -> {
+            try {
+                client.logContainerCmd(containerId)
+                        .withStdErr(true)
+                        .withStdOut(true)
+                        .withFollowStream(true)
+                        .withTimestamps(false)
+                        .exec(callback);
+            }
+            catch (Exception e) {
+                LOGGER.trace("error receiving logs from docker conainer (containerId: {})", containerId, e);
+            }
+        });
+        thread.setDaemon(true);
+        thread.start();
+        loggingCallbacks.put(containerId, callback);
+    }
+
+
+    public static void unsubscribeFromLogs(String containerId) {
+        ResultCallback.Adapter<Frame> logCallback = loggingCallbacks.remove(containerId);
+        if (Objects.nonNull(logCallback)) {
+            try {
+                logCallback.close();
+            }
+            catch (Exception e) {
+                LOGGER.debug("error unsubscribing from logs (containerId: {})", containerId, e);
+            }
         }
     }
 
@@ -129,27 +199,35 @@ public class DockerHelper {
     public static String createContainer(DockerClient client, ContainerInfo containerInfo) {
         ensureImagePresent(client, containerInfo.getImageName());
         stopAndDeleteContainerByName(client, containerInfo.getContainerName());
+        HostConfig hostConfig = new HostConfig()
+                .withBinds(containerInfo.getFileMappings().entrySet().stream()
+                        .map(x -> new Bind(x.getKey().toString(), new Volume(x.getValue()), AccessMode.ro))
+                        .toList())
+                .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
+                        .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
+                        .toList())
+                .withExtraHosts("host.docker.internal:host-gateway")
+                .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
+                        .map(x -> new Link(x.getKey(), x.getValue()))
+                        .toList());
+        if (!StringHelper.isBlank(config.getDockerNetwork())) {
+            String actualNetwork = getActualNetwork(client);
+            if (!StringHelper.isBlank(actualNetwork)) {
+                LOGGER.debug("starting docker container with network (provided: {}, actual: {})", config.getDockerNetwork(), actualNetwork);
+                hostConfig.withNetworkMode(actualNetwork);
+            }
+        }
         return client.createContainerCmd(containerInfo.getImageName())
                 .withExposedPorts(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> new ExposedPort(x.getValue()))
                         .toList())
-                .withHostConfig(new HostConfig()
-                        .withBinds(containerInfo.getFileMappings().entrySet().stream()
-                                .map(x -> new Bind(x.getKey().toString(), new Volume(x.getValue()), AccessMode.ro))
-                                .toList())
-                        .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
-                                .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
-                                .toList())
-                        .withExtraHosts("host.docker.internal:host-gateway")
-                        .withNetworkMode(getCurrentNetwork(client))
-                        .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
-                                .map(x -> new Link(x.getKey(), x.getValue()))
-                                .toList()))
+                .withHostConfig(hostConfig)
                 .withName(containerInfo.getContainerName())
                 .withEnv(containerInfo.getEnvironmentVariables().entrySet().stream()
                         .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
                         .toList())
-                .exec().getId();
+                .exec()
+                .getId();
     }
 
 
@@ -249,17 +327,20 @@ public class DockerHelper {
     }
 
 
-    public static void publish(DockerClient client, String registry, String tag) {
-        String targetTag = registry + "/" + tag;
-        tag(client, tag, targetTag);
-        client.pushImageCmd(targetTag)
+    public static void publish(DockerClient client, String registry, String imageId, String tag) {
+        String actualTag = tag;
+        if (!actualTag.startsWith(registry)) {
+            actualTag = registry + "/" + tag;
+        }
+        tag(client, imageId, actualTag);
+        client.pushImageCmd(actualTag)
                 .exec(new PushImageResultCallback())
                 .awaitSuccess();
     }
 
 
-    public static void tag(DockerClient client, String image, String tag) {
-        client.tagImageCmd(image, tag, DEFAULT_TAG).exec();
+    public static void tag(DockerClient client, String imageId, String tag) {
+        client.tagImageCmd(imageId, tag, DEFAULT_TAG).exec();
     }
 
 
@@ -280,22 +361,67 @@ public class DockerHelper {
     }
 
 
-    public static String getCurrentContainerId() {
-        return System.getenv("HOSTNAME");
-    }
-
-
-    public static String getCurrentNetwork(DockerClient client) {
-        if (config.getDeploymentType() == DeploymentType.INTERNAL) {
+    private static String getActualNetwork(DockerClient client) {
+        if (StringHelper.isBlank(config.getDockerContainerName())) {
             return null;
         }
         try {
-            return client.listContainersCmd().withIdFilter(List.of(getCurrentContainerId())).exec()
-                    .get(0).getNetworkSettings().getNetworks()
-                    .keySet().iterator().next();
+            List<Container> containers = client.listContainersCmd().withNameFilter(List.of(config.getDockerContainerName())).exec();
+            if (containers.size() != 1) {
+                LOGGER.warn("unable to resolve docker network name (reason: expected to find exactly one container with name '{}' but found {})",
+                        config.getDockerNetwork(),
+                        containers.size());
+                return null;
+            }
+            if (Objects.isNull(containers.get(0).getNetworkSettings())) {
+                return null;
+            }
+            Map<String, ContainerNetwork> networks = containers.get(0).getNetworkSettings().getNetworks();
+            LOGGER.trace("resolving docker network name - found container (name: {}, id: {}, #networks: {})",
+                    containers.get(0).getNames(),
+                    containers.get(0).getId(),
+                    networks.size());
+            LOGGER.trace("trying to find exact name match for {}", config.getDockerNetwork());
+            if (networks.keySet().contains(config.getDockerNetwork())) {
+                LOGGER.debug("resolving docker network name - found network with exact name match (name: {})", config.getDockerNetwork());
+                return config.getDockerNetwork();
+            }
+            LOGGER.trace("no exact name match found for {}", config.getDockerNetwork());
+            LOGGER.trace("trying to find exact alias match for {}", config.getDockerNetwork());
+            Optional<String> exactMatchAlias = networks.entrySet().stream()
+                    .filter(x -> Objects.nonNull(x.getValue().getAliases()))
+                    .filter(x -> x.getValue().getAliases().contains(config.getDockerNetwork()))
+                    .map(x -> x.getKey())
+                    .findFirst();
+            if (exactMatchAlias.isPresent()) {
+                LOGGER.debug("resolving docker network name - found network with exact alias match (name: {})", exactMatchAlias.get());
+                return exactMatchAlias.get();
+            }
+            LOGGER.trace("no exact alias match found for {}", config.getDockerNetwork());
+            LOGGER.trace("trying to find suffix name match for {}", config.getDockerNetwork());
+            Optional<String> suffixMatchKey = networks.keySet().stream()
+                    .filter(x -> x.endsWith(config.getDockerNetwork()))
+                    .findFirst();
+            if (suffixMatchKey.isPresent()) {
+                LOGGER.debug("resolving docker network name - found network with suffix name match (name: {})", suffixMatchKey.get());
+                return suffixMatchKey.get();
+            }
+            LOGGER.trace("no suffix name match found for {}", config.getDockerNetwork());
+            LOGGER.trace("trying to find suffix alias match for {}", config.getDockerNetwork());
+            Optional<String> suffixMatchAlias = networks.entrySet().stream()
+                    .filter(x -> Objects.nonNull(x.getValue().getAliases()))
+                    .filter(x -> x.getValue().getAliases().stream().anyMatch(y -> y.endsWith(config.getDockerNetwork())))
+                    .map(x -> x.getKey())
+                    .findFirst();
+            if (suffixMatchAlias.isPresent()) {
+                LOGGER.debug("resolving docker network name - found network with suffix alias match (name: {})", suffixMatchAlias.get());
+                return suffixMatchAlias.get();
+            }
+            LOGGER.trace("no suffix alias match found for {}", config.getDockerNetwork());
+            LOGGER.debug("resolving docker network name failed (reason: no matching network found for container name '{}'", config.getDockerContainerName());
         }
         catch (Exception e) {
-            LOGGER.debug("resolving current docker network failed", e);
+            LOGGER.warn("resolving docker network name failed", e);
         }
         return null;
     }

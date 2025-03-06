@@ -26,7 +26,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.filestorage.filesystem.FileStorageF
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
-import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
+import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
@@ -57,17 +57,15 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private File modelFile;
     private File configFile;
     private Path fileStoragePath;
-    private DigitalTwinDeploymentDockerConfig dockerConfig;
 
     private DockerClient dockerClient;
     private boolean running = false;
     private boolean dockerAvailable = false;
 
-    public DigitalTwinConnectorDocker(DigitalTwinConfig config, DigitalTwinDeploymentDockerConfig dockerConfig) {
-        super(config);
-        this.dockerConfig = dockerConfig;
+    public DigitalTwinConnectorDocker(DigitalTwinManagementConfig config, DigitalTwinConfig dtConfig) {
+        super(config, dtConfig);
         try {
-            dockerClient = DockerHelper.newClient(dockerConfig);
+            dockerClient = DockerHelper.newClient();
             dockerClient.pingCmd().exec();
             dockerAvailable = true;
         }
@@ -84,27 +82,29 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         if (running) {
             return;
         }
-        config.getModule().setContainerId(DockerHelper.startContainer(
+        dtConfig.getModule().setContainerId(DockerHelper.startContainer(
                 dockerClient,
                 ContainerInfo.builder()
-                        .imageName(dockerConfig.getImage())
-                        .containerName(DockerHelper.getContainerName(config.getModule()))
-                        .portMapping(config.getHttpPort(), CONTAINER_HTTP_PORT_INTERNAL)
+                        .imageName(config.getDtDockerImage())
+                        .containerName(DockerHelper.getContainerName(dtConfig.getModule()))
+                        .portMapping(dtConfig.getHttpPort(), CONTAINER_HTTP_PORT_INTERNAL)
                         .fileMapping(mapToHost(modelFile), CONTAINER_MODEL_FILE)
                         .fileMapping(mapToHost(configFile), CONTAINER_CONFIG_FILE)
                         .fileMapping(mapToHost(fileStoragePath.toFile()), CONTAINER_FILE_STORGE_PATH)
                         .environmentVariable("faaast_model", CONTAINER_MODEL_FILE)
                         .environmentVariable("faaast_config", CONTAINER_CONFIG_FILE)
                         .environmentVariable("faaast_loglevel_faaast", "TRACE")
-                        .linkedContainers(config.getModule().getServices().stream()
+                        .environmentVariable("faaast_show_stacktrace", "true")
+                        .linkedContainers(dtConfig.getModule().getServices().stream()
                                 .filter(InternalSmartService.class::isInstance)
                                 .map(InternalSmartService.class::cast)
                                 .collect(Collectors.toMap(
                                         x -> x.getContainerId(),
                                         x -> x.getName())))
                         .build()));
+        DockerHelper.subscribeToLogs(dockerClient, dtConfig.getModule().getContainerId(), "module-" + dtConfig.getModule().getId());
         running = true;
-        LOGGER.info("docker container started with ID {}", config.getModule().getContainerId());
+        LOGGER.info("docker container started with ID {}", dtConfig.getModule().getContainerId());
     }
 
 
@@ -114,8 +114,9 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             return;
         }
         if (dockerAvailable) {
-            DockerHelper.stopContainer(dockerClient, config.getModule().getContainerId());
-            DockerHelper.removeContainer(dockerClient, config.getModule().getContainerId());
+            DockerHelper.unsubscribeFromLogs(dtConfig.getModule().getContainerId());
+            DockerHelper.stopContainer(dockerClient, dtConfig.getModule().getContainerId());
+            DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
         }
         cleanUpTempDirectoryAndFiles();
         running = false;
@@ -136,7 +137,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             FileSystemUtils.deleteRecursively(contextPath);
         }
         catch (IOException ex) {
-            LOGGER.debug("error cleaning up temp directory for docker-based DT (id: {}, dir: {})", config.getModule().getId(), contextPath);
+            LOGGER.debug("error cleaning up temp directory for docker-based DT (id: {}, dir: {})", dtConfig.getModule().getId(), contextPath);
         }
     }
 
@@ -147,7 +148,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             if (!Files.exists(TMP_DIR)) {
                 Files.createDirectories(TMP_DIR);
             }
-            contextPath = TMP_DIR.resolve("dt-" + config.getModule().getId());
+            contextPath = TMP_DIR.resolve("dt-" + dtConfig.getModule().getId());
             if (!Files.exists(contextPath)) {
                 Files.createDirectories(contextPath);
                 created = true;
@@ -175,7 +176,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                 .endpoint(getHttpEndpointConfig(CONTAINER_HTTP_PORT_INTERNAL))
                 .messageBus(getMessageBusMqttConfig())
                 .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())
-                .assetConnections(config.getAssetConnections())
+                .assetConnections(dtConfig.getAssetConnections())
                 .persistence(PersistenceInMemoryConfig.builder().build())
                 .fileStorage(FileStorageFilesystemConfig.builder()
                         .existingDataPath(CONTAINER_FILE_STORGE_PATH)
@@ -196,7 +197,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     private void writeModelFile() {
         try {
-            EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, config.getEnvironmentContext());
+            EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, dtConfig.getEnvironmentContext());
         }
         catch (SerializationException | IOException e) {
             throw new DigitalTwinException("failed to serialize AAS model to file", e);
@@ -207,7 +208,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private void writeAuxiliaryFiles() {
         try {
             Files.createDirectory(fileStoragePath);
-            for (var file: config.getEnvironmentContext().getFiles()) {
+            for (var file: dtConfig.getEnvironmentContext().getFiles()) {
                 Files.write(
                         fileStoragePath.resolve(file.getPath().startsWith("/")
                                 ? file.getPath().substring(1)
@@ -222,15 +223,18 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
 
     private File mapToHost(File file) {
-        if (StringHelper.isBlank(dockerConfig.getTmpDirHostMapping())) {
+        if (StringHelper.isBlank(config.getDtDockerTmpDirHostMapping())) {
             return file;
         }
         try {
-            Path hostDir = Path.of(dockerConfig.getTmpDirHostMapping());
-            return new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
+            Path hostDir = Path.of(config.getDtDockerTmpDirHostMapping());
+            File result = new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
+            LOGGER.debug("mapped path for docker (original: {}, mapped: {}, original (absolute): {}, mapped (absolute): {})",
+                    file, result, file.getAbsolutePath(), result.getAbsolutePath());
+            return result;
         }
         catch (InvalidPathException e) {
-            LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", dockerConfig.getTmpDirHostMapping(), e);
+            LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", config.getDtDockerTmpDirHostMapping(), e);
             return file;
         }
     }
@@ -239,12 +243,12 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     @Override
     public void recreate() {
         initContainer();
-        if (!DockerHelper.containerExists(dockerClient, config.getModule().getContainerId())) {
-            LOGGER.info("Re-creating Digital Twin... (type: DOCKER, moduleId: {}, reason: container not running)", config.getModule().getId());
+        if (!DockerHelper.containerExists(dockerClient, dtConfig.getModule().getContainerId())) {
+            LOGGER.info("Re-creating Digital Twin... (type: DOCKER, moduleId: {}, reason: container not running)", dtConfig.getModule().getId());
             start();
         }
-        else if (!DockerHelper.isContainerRunning(dockerClient, config.getModule().getContainerId())) {
-            LOGGER.info("Re-attachting to Digital Twin... (type: DOCKER, moduleId: {}, containerId: {})", config.getModule().getId(), config.getModule().getContainerId());
+        else if (!DockerHelper.isContainerRunning(dockerClient, dtConfig.getModule().getContainerId())) {
+            LOGGER.info("Re-attachting to Digital Twin... (type: DOCKER, moduleId: {}, containerId: {})", dtConfig.getModule().getId(), dtConfig.getModule().getContainerId());
         }
     }
 }
