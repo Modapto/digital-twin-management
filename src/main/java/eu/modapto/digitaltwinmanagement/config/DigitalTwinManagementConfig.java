@@ -43,28 +43,28 @@ public class DigitalTwinManagementConfig {
 
     private boolean includeDockerLogs;
 
-    @Value("${dt-management.deployment.liveliness-check.timeout}")
+    @Value("${dt-management.deployment.liveliness-check.timeout:100000}")
     private int livelinessCheckTimeout;
 
-    @Value("${dt-management.deployment.liveliness-check.interval}")
+    @Value("${dt-management.deployment.liveliness-check.interval:500}")
     private int livelinessCheckInterval;
 
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 
-    @Value("${dt-management.docker.registry.url}")
+    @Value("${dt-management.docker.registry.url:}")
     private String dockerRegistryUrl;
 
-    @Value("${dt-management.docker.registry.username}")
+    @Value("${dt-management.docker.registry.username:}")
     private String dockerRegistryUsername;
 
-    @Value("${dt-management.docker.registry.password}")
+    @Value("${dt-management.docker.registry.password:}")
     private String dockerRegistryPassword;
 
-    @Value("${dt-management.docker.container.name}")
+    @Value("${dt-management.docker.container.name:}")
     private String dockerContainerName;
 
-    @Value("${dt-management.docker.network}")
+    @Value("${dt-management.docker.network:}")
     private String dockerNetwork;
 
     @Value("${dt-management.events.mqtt.host:localhost}")
@@ -73,7 +73,7 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.events.mqtt.host-from-container:}")
     private String mqttHostFromContainer;
 
-    @Value("${dt-management.events.mqtt.port}")
+    @Value("${dt-management.events.mqtt.port:1883}")
     private int mqttPort;
 
     @Value("${dt-management.events.mqtt.queue.size:100}")
@@ -88,10 +88,10 @@ public class DigitalTwinManagementConfig {
     @Value("${dt.deployment.docker.tmpDirHostMapping:}")
     private String dtDockerTmpDirHostMapping;
 
-    @Value("${modapto.service-catalogue.host}")
+    @Value("${modapto.service-catalogue.host:}")
     private String serviceCatalogueHost;
 
-    @Value("${modapto.service-catalogue.path}")
+    @Value("${modapto.service-catalogue.path:}")
     private String serviceCataloguePath;
 
     public String getHostname() {
