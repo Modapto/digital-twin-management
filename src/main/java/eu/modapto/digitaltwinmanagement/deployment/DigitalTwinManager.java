@@ -28,7 +28,6 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.LambdaExceptionHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.PortHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
-import eu.modapto.digitaltwinmanagement.config.DigitalTwinDeploymentDockerConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.messagebus.DigitalTwinEventForwarder;
@@ -86,11 +85,8 @@ public class DigitalTwinManager {
     private static final String MODAPTO_SUBMODEL_ID_SHORT = "ModaptoSmartServices";
     private static final String MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE = "http://modapto.eu/smt/modapto-smart-services";
     private static final Reference MODAPTO_SUBMODEL_SEMANTIC_ID = ReferenceBuilder.global(MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE);
-    private static final long TIMEOUT_REST_AVAILABLE_IN_MS = 60000;
-    private static final long INTERVAL_CHECK_REST_AVAILABLE_IN_MS = 500;
 
     private final DigitalTwinManagementConfig config;
-    private final DigitalTwinDeploymentDockerConfig dockerConfig;
 
     private final LiveModuleRepository liveModuleRepository;
     private final DigitalTwinConnectorFactory connectorFactory;
@@ -102,12 +98,10 @@ public class DigitalTwinManager {
     @Autowired
     public DigitalTwinManager(
             DigitalTwinManagementConfig config,
-            DigitalTwinDeploymentDockerConfig dockerConfig,
             LiveModuleRepository liveModuleRepository,
             DigitalTwinConnectorFactory connectorFactory,
             DigitalTwinEventForwarder eventForwarder) {
         this.config = config;
-        this.dockerConfig = dockerConfig;
         this.liveModuleRepository = liveModuleRepository;
         this.connectorFactory = connectorFactory;
     }
@@ -116,7 +110,7 @@ public class DigitalTwinManager {
     @PostConstruct
     private void init() {
         try {
-            dockerClient = DockerHelper.newClient(dockerConfig);
+            dockerClient = DockerHelper.newClient();
             dockerAvailable = true;
         }
         catch (Exception e) {
@@ -230,6 +224,7 @@ public class DigitalTwinManager {
 
 
     private void waitUntilModuleIsRunning(Module module) throws URISyntaxException {
+        LOGGER.debug("waiting for module to become available... (moduleId: {})", module.getId());
         waitUntilHttpServerIsRunning(
                 HttpMethod.GET,
                 module.getInternalEndpoint() + "/submodels",
@@ -253,8 +248,8 @@ public class DigitalTwinManager {
                 .build();
         Instant startTime = Instant.now();
         long elapsedTime = 0;
-        LOGGER.debug("Waiting for {} to become available... (method: {}, endpoint: {}, timeout: {})", type, method, url, TIMEOUT_REST_AVAILABLE_IN_MS);
-        while (elapsedTime < TIMEOUT_REST_AVAILABLE_IN_MS) {
+        LOGGER.debug("Waiting for {} to become available... (method: {}, endpoint: {}, timeout: {})", type, method, url, config.getLivelinessCheckTimeout());
+        while (elapsedTime < config.getLivelinessCheckTimeout()) {
             HttpResponse<String> response;
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -269,7 +264,7 @@ public class DigitalTwinManager {
             }
             elapsedTime = Duration.between(startTime, Instant.now()).toMillis();
             try {
-                Thread.sleep(INTERVAL_CHECK_REST_AVAILABLE_IN_MS);
+                Thread.sleep(config.getLivelinessCheckInterval());
             }
             catch (InterruptedException e) {
                 LOGGER.trace("Thread interrepted while waiting for {} to become available", type, e);
@@ -280,7 +275,7 @@ public class DigitalTwinManager {
                 type,
                 method,
                 url,
-                TIMEOUT_REST_AVAILABLE_IN_MS));
+                config.getLivelinessCheckTimeout()));
     }
 
 
@@ -314,6 +309,7 @@ public class DigitalTwinManager {
 
     private int startContainerForInternalService(InternalSmartService service) throws URISyntaxException {
         int port = PortHelper.findFreePort();
+        LOGGER.debug("starting docker container for internal smart service (serviceId: {}, image: {}, port: {})", service.getId(), service.getImage(), port);
         String containerId = DockerHelper.startContainer(
                 dockerClient,
                 DockerHelper.ContainerInfo.builder()
@@ -321,7 +317,9 @@ public class DigitalTwinManager {
                         .containerName(DockerHelper.getContainerName(service))
                         .portMapping(port, service.getInternalPort())
                         .build());
+        DockerHelper.subscribeToLogs(dockerClient, containerId, "service-" + service.getId());
         service.setContainerId(containerId);
+        LOGGER.info("docker container for internal smart service started (serviceId: {}, containerId: {})", service.getId(), containerId);
         waitUntilHttpServerIsRunning(
                 HttpMethod.OPTIONS,
                 AddressTranslationHelper.getHostToInternalService(service, port).asUrl(),
@@ -336,6 +334,7 @@ public class DigitalTwinManager {
                 .map(InternalSmartService.class::cast)
                 .forEach(x -> {
                     try {
+                        DockerHelper.unsubscribeFromLogs(x.getContainerId());
                         DockerHelper.removeContainer(dockerClient, x.getContainerId());
                     }
                     catch (DockerException e) {
@@ -402,7 +401,7 @@ public class DigitalTwinManager {
         }
         DigitalTwinConnector dt = instances.get(module.getId());
         dt.stop();
-        deploy(module, dt.config.getHttpPort());
+        deploy(module, dt.dtConfig.getHttpPort());
     }
 
 

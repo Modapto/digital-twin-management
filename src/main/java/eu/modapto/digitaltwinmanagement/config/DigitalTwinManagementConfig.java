@@ -41,19 +41,39 @@ public class DigitalTwinManagementConfig {
 
     private boolean exposeDTsViaContainerName;
 
+    private boolean includeDockerLogs;
+
+    @Value("${dt-management.deployment.liveliness-check.timeout:100000}")
+    private int livelinessCheckTimeout;
+
+    @Value("${dt-management.deployment.liveliness-check.interval:500}")
+    private int livelinessCheckInterval;
+
     @Value("${dt-management.deployment.type}")
     private DeploymentType deploymentType;
 
-    @Value("${modapto.service-catalogue.host}")
-    private String serviceCatalogueHost;
+    @Value("${dt-management.docker.registry.url:}")
+    private String dockerRegistryUrl;
 
-    @Value("${modapto.service-catalogue.path}")
-    private String serviceCataloguePath;
+    @Value("${dt-management.docker.registry.username:}")
+    private String dockerRegistryUsername;
+
+    @Value("${dt-management.docker.registry.password:}")
+    private String dockerRegistryPassword;
+
+    @Value("${dt-management.docker.container.name:}")
+    private String dockerContainerName;
+
+    @Value("${dt-management.docker.network:}")
+    private String dockerNetwork;
 
     @Value("${dt-management.events.mqtt.host:localhost}")
     private String mqttHost;
 
-    @Value("${dt-management.events.mqtt.port}")
+    @Value("${dt-management.events.mqtt.host-from-container:}")
+    private String mqttHostFromContainer;
+
+    @Value("${dt-management.events.mqtt.port:1883}")
     private int mqttPort;
 
     @Value("${dt-management.events.mqtt.queue.size:100}")
@@ -61,6 +81,18 @@ public class DigitalTwinManagementConfig {
 
     @Value("${dt-management.events.mqtt.thread.count:1}")
     private int mqttThreadCount;
+
+    @Value("${dt.deployment.docker.image:ghcr.io/modapto/digital-twin:latest}")
+    private String dtDockerImage;
+
+    @Value("${dt.deployment.docker.tmpDirHostMapping:}")
+    private String dtDockerTmpDirHostMapping;
+
+    @Value("${modapto.service-catalogue.host:}")
+    private String serviceCatalogueHost;
+
+    @Value("${modapto.service-catalogue.path:}")
+    private String serviceCataloguePath;
 
     public String getHostname() {
         return AddressTranslationHelper.ensureProtocolPresent(hostname);

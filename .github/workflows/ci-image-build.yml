@@ -49,7 +49,7 @@ jobs:
 
     - name: Build
       run: |
-        mvn clean package -Dmaven.test.skip=true
+        mvn clean package -Ddt-management.deployment.type=DOCKER -Dlogging.level.root=DEBUG
 
     - name: Extract version from pom.xml
       id: get_version

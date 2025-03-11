@@ -14,9 +14,11 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
+import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -25,9 +27,12 @@ import org.springframework.stereotype.Component;
 @Setter
 @NoArgsConstructor
 @Component
-@ConfigurationProperties(prefix = "dt.management.test")
+@ConfigurationProperties(prefix = "dt-management.test")
 public class TestConfig {
     private int localDockerRegistryInternalPort = 5000;
     private int localDockerRegistryExternalPort = 5000;
     private String localDockerRegistryImage = "registry:2";
+
+    @Value("${dt.test.deployment.type:DOCKER}")
+    private DeploymentType dtDeplyomentType;
 }

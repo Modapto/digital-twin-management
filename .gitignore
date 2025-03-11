@@ -23,3 +23,4 @@ target/
 **/.flattened-pom.xml
 
 *.log
+examples/data

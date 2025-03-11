@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eu.modapto.digitaltwinmanagement.controller;
+package eu.modapto.digitaltwinmanagement;
 
 import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 
