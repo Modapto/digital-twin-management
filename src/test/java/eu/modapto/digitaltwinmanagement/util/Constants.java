@@ -26,6 +26,7 @@ public class Constants {
     public static final String EMBEDDED_BOUNCING_BALL_FILENAME = "embedded-bouncing-ball.json";
     public static final String INTERNAL_ADD_FILENAME = "internal-add.json";
     public static final String INTERNAL_ADD_WITH_MAPPINGS_FILENAME = "internal-add-with-mappings.json";
+    public static final String INTERNAL_ADD_WITH_BLOB_FILENAME = "internal-add-with-blob.json";
     public static final String EXTERNAL_FILENAME = "external.json";
 
     public static final String PATH_SERVICE_CATALOG_RESPONSE = "service-catalog-response";
@@ -35,6 +36,7 @@ public class Constants {
     // Smart Service IDs
     public static final String EMBEDDED_SMART_SERVICE_ID = "embedded-1";
     public static final String INTERNAL_SMART_SERVICE_ID = "internal-1";
+    public static final String INTERNAL_SMART_SERVICE_WITH_BLOB_ID = "internal-with-blob-1";
     public static final String EXTERNAL_SMART_SERVICE_ID = "external-1";
 
     // REST
@@ -56,6 +58,8 @@ public class Constants {
     // Docker
     public static final String INTERNAL_SERVICE_IMAGE_NAME = "internal-service-mock";
     public static final String INTERNAL_SERVICE_DOCKERFILE = "src/test/resources/container/internal-service-mock/Dockerfile";
+    public static final String INTERNAL_SERVICE_WITH_BLOB_IMAGE_NAME = "internal-service-with-blob-mock";
+    public static final String INTERNAL_SERVICE_WITH_BLOB_DOCKERFILE = "src/test/resources/container/internal-service-with-blob-mock/Dockerfile";
 
     // Events
     public static final String PATH_EVENT = "event";

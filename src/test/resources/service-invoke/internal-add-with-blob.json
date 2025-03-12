@@ -1,0 +1,10 @@
+{
+    "inputArguments": {
+        "input1": {
+            "contentType": "application/json",
+            "value": "ewoJImRhdGEiOiAxLjMKfQ=="
+        }
+    },
+    "inoutputArguments": {},
+    "clientTimeoutDuration": "PT60000S"
+}
