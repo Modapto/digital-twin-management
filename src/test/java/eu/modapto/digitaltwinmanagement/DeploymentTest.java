@@ -15,6 +15,7 @@
 package eu.modapto.digitaltwinmanagement;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +84,7 @@ import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultAssetAdministrationShell;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultBlob;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultEnvironment;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodel;
@@ -141,8 +143,10 @@ class DeploymentTest {
 
     private static String INTERNAL_ADD_INVOKE_PAYLOAD;
     private static String INTERNAL_ADD_WITH_MAPPINGS_INVOKE_PAYLOAD;
+    private static String INTERNAL_ADD_WITH_BLOB_INVOKE_PAYLOAD;
     private static String INTERNAL_ADD_EXPECTED_RESULT;
     private static String INTERNAL_ADD_CATALOG_RESPONSE;
+    private static String INTERNAL_ADD_WITH_BLOB_CATALOG_RESPONSE;
 
     private static String EXTERNAL_INVOKE_PAYLOAD;
     private static String EXTERNAL_EXPECTED_RESULT;
@@ -209,8 +213,11 @@ class DeploymentTest {
 
         INTERNAL_ADD_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, INTERNAL_ADD_FILENAME);
         INTERNAL_ADD_WITH_MAPPINGS_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, INTERNAL_ADD_WITH_MAPPINGS_FILENAME);
+        INTERNAL_ADD_WITH_BLOB_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, INTERNAL_ADD_WITH_BLOB_FILENAME);
+
         INTERNAL_ADD_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, INTERNAL_ADD_FILENAME);
         INTERNAL_ADD_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, INTERNAL_ADD_FILENAME);
+        INTERNAL_ADD_WITH_BLOB_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, INTERNAL_ADD_WITH_BLOB_FILENAME);
 
         EXTERNAL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EXTERNAL_FILENAME);
         EXTERNAL_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EXTERNAL_FILENAME);
@@ -233,12 +240,13 @@ class DeploymentTest {
         config.setServiceCatalogueHost(SERVICE_CATALOG_MOCK.baseUrl());
         mockServiceInCatalog(EMBEDDED_SMART_SERVICE_ID, EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE);
         mockServiceInCatalog(INTERNAL_SMART_SERVICE_ID, INTERNAL_ADD_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
+        mockServiceInCatalog(INTERNAL_SMART_SERVICE_WITH_BLOB_ID, INTERNAL_ADD_WITH_BLOB_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
         mockServiceInCatalog(EXTERNAL_SMART_SERVICE_ID, EXTERNAL_CATALOG_RESPONSE);
     }
 
 
     private void mockServiceInCatalog(String serviceId, String responsePayload) throws JsonProcessingException {
-        SERVICE_CATALOG_MOCK.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo(String.format(config.getServiceCataloguePath(), serviceId)))
+        SERVICE_CATALOG_MOCK.stubFor(get(urlEqualTo(String.format(config.getServiceCataloguePath(), serviceId)))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -258,16 +266,21 @@ class DeploymentTest {
         localDockerRegistry.start();
         localDockerRegistryUrl = localDockerRegistry.getHost() + ":" + testConfig.getLocalDockerRegistryExternalPort();
         LOGGER.info("local registry started: {}", localDockerRegistryUrl);
+        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_DOCKERFILE, INTERNAL_SERVICE_IMAGE_NAME);
+        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_WITH_BLOB_DOCKERFILE, INTERNAL_SERVICE_WITH_BLOB_IMAGE_NAME);
+    }
 
+
+    private void createAndLocallyPublishDockerImage(String dockerFile, String imageName) {
         String internalServiceDockerImage = DockerHelper.buildImage(
                 dockerClient,
-                new File(INTERNAL_SERVICE_DOCKERFILE),
-                INTERNAL_SERVICE_IMAGE_NAME);
+                new File(dockerFile),
+                imageName);
         DockerHelper.publish(
                 DockerHelper.newClient("http://" + localDockerRegistryUrl),
                 localDockerRegistryUrl,
                 internalServiceDockerImage,
-                INTERNAL_SERVICE_IMAGE_NAME);
+                imageName);
     }
 
 
@@ -460,6 +473,46 @@ class DeploymentTest {
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
         assertInvokeServiceResponse(actual, INTERNAL_ADD_WITH_MAPPINGS_INVOKE_PAYLOAD, INTERNAL_ADD_EXPECTED_RESULT);
+    }
+
+
+    @Test
+    void testCreateInternalServiceWithBlob() throws Exception {
+        String dataReferenceIdShort = "externalInput2";
+        Environment environment = newDefaultEnvironment();
+        Submodel submodel = environment.getSubmodels().get(0);
+        submodel.getSubmodelElements().add(
+                new DefaultBlob.Builder()
+                        .idShort(dataReferenceIdShort)
+                        .value("{\"data\": 2.03}".getBytes())
+                        .build());
+        Reference dataReference = ReferenceBuilder.forSubmodel(submodel, dataReferenceIdShort);
+        Module module = moduleService.createModule(Module.builder()
+                .providedModel(EnvironmentContext.builder()
+                        .environment(environment)
+                        .build())
+                .type(testConfig.getDtDeplyomentType())
+                .build());
+        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        MockHttpServletResponse response = mockMvc.perform(
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(
+                                SmartServiceRequestDto.builder()
+                                        .serviceCatalogId(INTERNAL_SMART_SERVICE_WITH_BLOB_ID)
+                                        .inputArgumentTypes(Map.of(
+                                                "input2", ArgumentMapping.builder()
+                                                        .type(ArgumentType.REFERENCE)
+                                                        .value(ReferenceHelper.asString(dataReference))
+                                                        .build()))
+                                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
+                .andReturn()
+                .getResponse();
+        SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertInvokeServiceResponse(actual, INTERNAL_ADD_WITH_BLOB_INVOKE_PAYLOAD, INTERNAL_ADD_EXPECTED_RESULT);
     }
 
 
