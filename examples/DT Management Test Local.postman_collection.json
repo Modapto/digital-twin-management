@@ -265,6 +265,88 @@
 			"response": []
 		},
 		{
+			"name": "Assign Internal Smart Service With Blob",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const endpoint = pm.response.json().endpoint;\r",
+							"pm.collectionVariables.set('internalServiceWithBlobEndpoint', endpoint);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"serviceCatalogId\": \"internal-with-blob-1\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/modules/{{moduleId}}/services",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"modules",
+						"{{moduleId}}",
+						"services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Invoke Internal Smart Service With Blob",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"inputArguments\": {\r\n        \"input1\": {\r\n            \"contentType\": \"application/json\",\r\n            \"value\": \"ewoJImRhdGEiOiAxLjMKfQ==\"\r\n        }\r\n    },\r\n    \"inoutputArguments\": {},\r\n    \"clientTimeoutDuration\": \"PT60S\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{internalServiceWithBlobEndpoint}}/invoke/$value",
+					"host": [
+						"{{internalServiceWithBlobEndpoint}}"
+					],
+					"path": [
+						"invoke",
+						"$value"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Assign Embedded Smart Service",
 			"event": [
 				{
@@ -421,6 +503,11 @@
 		},
 		{
 			"key": "internalServiceEndpoint",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "internalServiceWithBlobEndpoint",
 			"value": "",
 			"type": "string"
 		},
