@@ -46,6 +46,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -366,11 +368,16 @@ public class DockerHelper {
             return null;
         }
         try {
-            List<Container> containers = client.listContainersCmd().withNameFilter(List.of(config.getDockerContainerName())).exec();
+            String containerSearchName = "^/" + config.getDockerContainerName() + "$";
+            LOGGER.trace("searching for containers with name '{}'", containerSearchName);
+            List<Container> containers = client.listContainersCmd().withNameFilter(List.of(containerSearchName)).exec();
             if (containers.size() != 1) {
-                LOGGER.warn("unable to resolve docker network name (reason: expected to find exactly one container with name '{}' but found {})",
+                LOGGER.warn("unable to resolve docker network name (reason: expected to find exactly one container with name '{}' but found {} ({}))",
                         config.getDockerNetwork(),
-                        containers.size());
+                        containers.size(),
+                        containers.stream()
+                                .map(x -> Stream.of(x.getNames()).collect(Collectors.joining(", ", "[", "]")))
+                                .collect(Collectors.joining(",")));
                 return null;
             }
             if (Objects.isNull(containers.get(0).getNetworkSettings())) {
