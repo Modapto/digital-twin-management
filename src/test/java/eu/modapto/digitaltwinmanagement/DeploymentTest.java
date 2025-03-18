@@ -71,6 +71,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -113,6 +114,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -193,6 +196,8 @@ class DeploymentTest {
     @Autowired
     private ObjectMapper mapper;
 
+    private static Jwt jwt;
+
     private static boolean initialized = false;
 
     @DynamicPropertySource
@@ -225,6 +230,7 @@ class DeploymentTest {
         dockerClient = DockerHelper.newClient();
         initLocalDockerRegistry();
         initServiceCatalogueMock();
+        initDummyJwtToken();
         initialized = true;
     }
 
@@ -232,6 +238,23 @@ class DeploymentTest {
     @BeforeEach
     void resetMocks() {
         MockitoAnnotations.openMocks(this);
+    }
+
+
+    private void initLocalDockerRegistry() {
+        localDockerRegistry = new GenericContainer<>(DockerImageName.parse(testConfig.getLocalDockerRegistryImage()))
+                .withExposedPorts(testConfig.getLocalDockerRegistryInternalPort())
+                .waitingFor(Wait.forListeningPort())
+                .waitingFor(Wait.forHttp("/v2/").forStatusCode(200));
+        if (!StringHelper.isBlank(config.getDockerNetwork())) {
+            localDockerRegistry.withNetworkMode(config.getDockerNetwork());
+        }
+        localDockerRegistry.setPortBindings(List.of(testConfig.getLocalDockerRegistryExternalPort() + ":" + testConfig.getLocalDockerRegistryInternalPort()));
+        localDockerRegistry.start();
+        localDockerRegistryUrl = localDockerRegistry.getHost() + ":" + testConfig.getLocalDockerRegistryExternalPort();
+        LOGGER.info("local registry started: {}", localDockerRegistryUrl);
+        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_DOCKERFILE, INTERNAL_SERVICE_IMAGE_NAME);
+        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_WITH_BLOB_DOCKERFILE, INTERNAL_SERVICE_WITH_BLOB_IMAGE_NAME);
     }
 
 
@@ -254,20 +277,19 @@ class DeploymentTest {
     }
 
 
-    private void initLocalDockerRegistry() {
-        localDockerRegistry = new GenericContainer<>(DockerImageName.parse(testConfig.getLocalDockerRegistryImage()))
-                .withExposedPorts(testConfig.getLocalDockerRegistryInternalPort())
-                .waitingFor(Wait.forListeningPort())
-                .waitingFor(Wait.forHttp("/v2/").forStatusCode(200));
-        if (!StringHelper.isBlank(config.getDockerNetwork())) {
-            localDockerRegistry.withNetworkMode(config.getDockerNetwork());
-        }
-        localDockerRegistry.setPortBindings(List.of(testConfig.getLocalDockerRegistryExternalPort() + ":" + testConfig.getLocalDockerRegistryInternalPort()));
-        localDockerRegistry.start();
-        localDockerRegistryUrl = localDockerRegistry.getHost() + ":" + testConfig.getLocalDockerRegistryExternalPort();
-        LOGGER.info("local registry started: {}", localDockerRegistryUrl);
-        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_DOCKERFILE, INTERNAL_SERVICE_IMAGE_NAME);
-        createAndLocallyPublishDockerImage(INTERNAL_SERVICE_WITH_BLOB_DOCKERFILE, INTERNAL_SERVICE_WITH_BLOB_IMAGE_NAME);
+    private static void initDummyJwtToken() {
+        String tokenValue = "mock.jwt.token";
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("realm_access", Map.of("roles", List.of("SUPER_ADMIN")));
+        claims.put("resource_access", Map.of("modapto", Map.of("roles", List.of("SUPER_ADMIN"))));
+        claims.put("sid", "user");
+        claims.put("pilot_code", List.of("CRF"));
+        claims.put("user_role", List.of("TEST"));
+        claims.put("pilot_role", List.of("SUPER_ADMIN"));
+        jwt = Jwt.withTokenValue(tokenValue)
+                .headers(header -> header.put("alg", "HS256"))
+                .claims(claim -> claim.putAll(claims))
+                .build();
     }
 
 
@@ -332,6 +354,7 @@ class DeploymentTest {
                 .format(DataFormat.JSON)
                 .build();
         MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
+                .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload)))
                 .andDo(MockMvcResultHandlers.print())
