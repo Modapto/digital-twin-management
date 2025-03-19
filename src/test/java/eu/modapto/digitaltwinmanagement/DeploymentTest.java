@@ -124,6 +124,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
 
@@ -280,9 +281,8 @@ class DeploymentTest {
 
 
     private static void initSecurity() throws IOException {
-        File configFile = createKeycloakConfigFile();
         keycloak = new KeycloakContainer()
-                .withFileSystemBind(configFile.getAbsolutePath(), KEYCLOAK_CONTAINER_REALM_FILE);
+                .withCopyToContainer(Transferable.of(createKeycloakConfigFile()), KEYCLOAK_CONTAINER_REALM_FILE);
         keycloak.start();
         token = KeycloakBuilder.builder()
                 .serverUrl(keycloak.getAuthServerUrl())
@@ -297,15 +297,12 @@ class DeploymentTest {
     }
 
 
-    private static File createKeycloakConfigFile() throws IOException {
+    private static String createKeycloakConfigFile() throws IOException {
         String content = Files.readString(new ClassPathResource(KEYCLOAK_CONFIG_FILE).getFile().toPath());
         for (var entry: KEYCLOAK_CONFIG_REPLACEMENTS.entrySet()) {
             content = content.replace(entry.getKey(), entry.getValue());
         }
-        File result = Files.createTempFile("keycloak-config", ".json").toFile();
-        result.deleteOnExit();
-        Files.write(result.toPath(), content.getBytes());
-        return result;
+        return content;
     }
 
 
