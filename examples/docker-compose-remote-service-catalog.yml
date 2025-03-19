@@ -9,45 +9,54 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - DTMANAGEMENT_HOSTNAME=http://127.0.0.1
-      - DTMANAGEMENT_PORT=8080
-      - DTMANAGEMENT_EXTERNALPORT=8094
-      - DTMANAGEMENT_USEPROXY=true
-      - DTMANAGEMENT_EXPOSEDTSVIACONTAINERNAME=false
-      - DTMANAGEMENT_DOCKER_REGISTRY_URL=ghcr.io
-      - DTMANAGEMENT_DOCKER_REGISTRY_USERNAME=${DOCKER_REGISTRY_USERNAME}
-      - DTMANAGEMENT_DOCKER_REGISTRY_PASSWORD=${DOCKER_REGISTRY_PASSWORD}
-      - DTMANAGEMENT_DOCKER_CONTAINER_NAME=digital-twin-management
-      - DTMANAGEMENT_DOCKER_NETWORK=modapto
-      - DTMANAGEMENT_DEPLOYMENT_TYPE=DOCKER
-      - DTMANAGEMENT_EVENTS_MQTT_HOST=0.0.0.0
-      - DTMANAGEMENT_EVENTS_MQTT_PORT=1883      
-      - MODAPTO_SERVICECATALOGUE_HOST=https://services.modapto.atc.gr
-      - MODAPTO_MESSAGEBUS_URL=kafka-broker:9092
-      - DT_DEPLOYMENT_DOCKER_TMPDIRHOSTMAPPING=${CURRENT_DIR}/data
-      - DT_DEPLOYMENT_DOCKER_IMAGE=ghcr.io/modapto/digital-twin:latest
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DTMANAGEMENT_HOSTNAME: http://127.0.0.1
+      DTMANAGEMENT_PORT: 8080
+      DTMANAGEMENT_EXTERNALPORT: 8094
+      DTMANAGEMENT_USEPROXY: true
+      DTMANAGEMENT_EXPOSEDTSVIACONTAINERNAME: false
+      DTMANAGEMENT_DOCKER_REGISTRY_URL: ghcr.io
+      DTMANAGEMENT_DOCKER_REGISTRY_USERNAME: ${DOCKER_REGISTRY_USERNAME}
+      DTMANAGEMENT_DOCKER_REGISTRY_PASSWORD: ${DOCKER_REGISTRY_PASSWORD}
+      DTMANAGEMENT_DOCKER_CONTAINER_NAME: digital-twin-management
+      DTMANAGEMENT_DOCKER_NETWORK: modapto
+      DTMANAGEMENT_DEPLOYMENT_TYPE: DOCKER
+      DTMANAGEMENT_EVENTS_MQTT_HOST: 0.0.0.0
+      DTMANAGEMENT_EVENTS_MQTT_PORT: 1883
+      MODAPTO_SERVICECATALOGUE_HOST: https://services.modapto.atc.gr
+      MODAPTO_MESSAGEBUS_URL: kafka-broker:9092
+      DT_DEPLOYMENT_DOCKER_TMPDIRHOSTMAPPING: ${CURRENT_DIR}/data
+      DT_DEPLOYMENT_DOCKER_IMAGE: ghcr.io/modapto/digital-twin:latest
       # Database	  
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
-      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://dtm-db:5432/dtm
-      - SPRING_DATASOURCE_USERNAME=dtm
-      - SPRING_DATASOURCE_PASSWORD=dtm-db-password
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SPRING_H2_CONSOLE_ENABLED=false
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dtm-db:5432/dtm
+      SPRING_DATASOURCE_USERNAME: dtm
+      SPRING_DATASOURCE_PASSWORD: dtm-db-password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_H2_CONSOLE_ENABLED: false
       # Logging
-      - LOGGING_LEVEL_ROOT=INFO
-      - DTMANAGEMENT_INCLUDEDOCKERLOGS=false
-      - LOGGING_LEVEL_EU_MODAPTO_DIGITALTWINMANAGEMENT=DEBUG
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB=INFO
-      - LOGGING_LEVEL_ORG_POSTGRESQL=INFO
-      - SPRING_JPA_PROPERTIES_ECLIPSELINK_LOGGING_LEVEL=WARNING      
+      LOGGING_LEVEL_ROOT: INFO
+      DTMANAGEMENT_INCLUDEDOCKERLOGS: false
+      LOGGING_LEVEL_EU_MODAPTO_DIGITALTWINMANAGEMENT: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: INFO
+      LOGGING_LEVEL_ORG_POSTGRESQL: INFO
+      SPRING_JPA_PROPERTIES_ECLIPSELINK_LOGGING_LEVEL: WARNING
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data:/tmp/dt-context
     ports:
       - 8094:8080
       - 1883:1883
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      dtm-db:
+        condition: service_started
+      service-catalog-mock:
+        condition: service_started
+      kafka-broker:
+        condition: service_started
     networks:
       - modapto
 
@@ -78,6 +87,28 @@ services:
     networks:
       - modapto
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: dev-mem
+      KC_HEALTH_ENABLED: true
+      KC_HOSTNAME: localhost
+    ports:
+      - 8080:8080
+      - 9000:9000
+    volumes:
+      - ../src/test/resources/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command:
+      - start-dev
+      - --import-realm
+    healthcheck:
+      test: ["CMD-SHELL", 'exec 3<>/dev/tcp/localhost/9000; echo -e "GET /health/ready HTTP/1.1\nhost: localhost:9000\n" >&3; timeout --preserve-status 1 cat <&3 | grep -m 1 status | grep -m 1 UP; ERROR=$?; exec 3<&-; exec 3>&-; exit $ERROR']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   kafka-zookeeper:
     image: confluentinc/cp-zookeeper:latest
     environment:
@@ -94,6 +125,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_LOG4J_LOGGERS: "kafka=WARN, kafka.controller=WARN, kafka.server=WARN"
     depends_on:
       - kafka-zookeeper
     networks:

@@ -376,6 +376,16 @@
 			"response": []
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -393,7 +403,44 @@
 				"type": "text/javascript",
 				"packages": {},
 				"exec": [
-					""
+					"const server = pm.collectionVariables.get(\"keycloak-server\");\r",
+					"const realm = pm.collectionVariables.get(\"keycloak-realm\");\r",
+					"const username = pm.collectionVariables.get(\"keycloak-username\");\r",
+					"const password = pm.collectionVariables.get(\"keycloak-password\");\r",
+					"const clientId = pm.collectionVariables.get(\"keycloak-client-id\");\r",
+					"const clientSecret = pm.collectionVariables.get(\"keycloak-client-secret\");\r",
+					"\r",
+					"if (!pm.collectionVariables.get(\"token\")) {        \r",
+					"    pm.sendRequest({\r",
+					"        url: 'http://' + server + '/realms/' + realm  + '/protocol/openid-connect/token',\r",
+					"        method: 'POST',\r",
+					"        header: {\r",
+					"            'Content-Type': 'application/x-www-form-urlencoded'\r",
+					"        },\r",
+					"        body: {\r",
+					"            mode: 'urlencoded',\r",
+					"            urlencoded: [\r",
+					"                { key: 'grant_type', value: 'client_credentials' },\r",
+					"                { key: 'client_id', value: clientId },\r",
+					"\t\t\t\t{ key: 'client_secret', value: clientSecret },\r",
+					"                { key: 'username', value: username },\r",
+					"                { key: 'password', value: password }\r",
+					"            ]\r",
+					"        }\r",
+					"    }, function (err, res) {\r",
+					"        if (err) {\r",
+					"            console.error(\"Request failed:\", err);\r",
+					"            return;\r",
+					"        }\r",
+					"        if (res.code === 200) {\r",
+					"            const jsonResponse = res.json();\r",
+					"            console.log(\"using new token: \", jsonResponse.access_token);\r",
+					"            pm.collectionVariables.set(\"token\", jsonResponse.access_token);\r",
+					"        }\r",
+					"    });\r",
+					"} else {\r",
+					"    console.log(\"using token: \", pm.collectionVariables.get(\"token\"));\r",
+					"}"
 				]
 			}
 		}
@@ -428,6 +475,40 @@
 			"key": "embeddedServiceEndpoint",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "keycloak-username",
+			"value": "dtm-dev-username",
+			"type": "string"
+		},
+		{
+			"key": "keycloak-password",
+			"value": "dtm-dev-password",
+			"type": "string"
+		},
+		{
+			"key": "keycloak-client-id",
+			"value": "dtm-dev-client",
+			"type": "string"
+		},
+		{
+			"key": "keycloak-server",
+			"value": "localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "keycloak-realm",
+			"value": "dtm-dev-realm",
+			"type": "string"
+		},
+		{
+			"key": "keycloak-client-secret",
+			"value": "dtm-dev-client-secret",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": ""
 		}
 	]
 }

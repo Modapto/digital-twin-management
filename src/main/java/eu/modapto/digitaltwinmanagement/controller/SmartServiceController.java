@@ -20,10 +20,15 @@ import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
 import eu.modapto.digitaltwinmanagement.service.ModuleService;
 import eu.modapto.digitaltwinmanagement.service.SmartServiceService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,7 +53,12 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Get all smart services", description = "Returns a list of all smart services")
+    @Operation(summary = "Get all smart services", description = "Returns a list of all smart services", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping("/services")
     public List<SmartServiceResponseDto> getAllSmartServices() {
         return smartServiceService.getAllSmartServices().stream()
@@ -57,15 +67,28 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Get smart service by ID", description = "Returns the details of an existing smart service by its ID")
+    @Operation(summary = "Get smart service by ID", description = "Returns the details of an existing smart service by its ID", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Smart Service not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping("/services/{serviceId}")
     public SmartServiceResponseDto getSmartService(@PathVariable String serviceId) {
         return SmartServiceMapper.toDto(smartServiceService.getSmartServiceById(serviceId));
     }
 
 
-    @Operation(summary = "Create a new smart service", description = "Creates a new smart service withing a service based on the provided details")
-    @ApiResponse(responseCode = "200", description = "Smart service created successfully")
+    @Operation(summary = "Create a new smart service", description = "Creates a new smart service withing a service based on the provided details", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Smart Service created successfully", headers = {
+                    @Header(name = HttpHeaders.LOCATION, description = "URI of the created Smart Service", required = true)
+            }),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Module not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @PostMapping("/modules/{moduleId}/services")
     public ResponseEntity<SmartServiceResponseDto> createService(@PathVariable String moduleId, @RequestBody SmartServiceRequestDto request) throws Exception {
         SmartServiceResponseDto result = SmartServiceMapper.toDto(smartServiceService.addServiceToModule(moduleId, request));
@@ -75,7 +98,13 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Get services for a module", description = "Returns a list of services associated with the specified module")
+    @Operation(summary = "Get services for a module", description = "Returns a list of services associated with the specified module", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Module not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping("/modules/{moduleId}/services")
     public List<SmartServiceResponseDto> getServicesForModule(@PathVariable String moduleId) {
         return moduleService.getModuleById(moduleId).getServices().stream()
@@ -84,8 +113,13 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Delete a service from a module", description = "Deletes a service by its ID from the specified module")
-    @ApiResponse(responseCode = "204", description = "Service deleted from module successfully")
+    @Operation(summary = "Delete a service from a module", description = "Deletes a service by its ID from the specified module", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Smart Service deleted from module successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Module or Smart Service not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @DeleteMapping("/modules/{moduleId}/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteServiceFromModule(@PathVariable String moduleId, @PathVariable String serviceId) throws Exception {
@@ -93,8 +127,13 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Delete a smart service", description = "Deletes a smart service by its ID")
-    @ApiResponse(responseCode = "204", description = "Smart service deleted successfully")
+    @Operation(summary = "Delete a smart service", description = "Deletes a smart service by its ID", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Smart Service deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Smart Service not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @DeleteMapping("/services/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSmartService(@PathVariable String serviceId) throws Exception {

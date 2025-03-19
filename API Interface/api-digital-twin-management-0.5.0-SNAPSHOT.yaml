@@ -130,12 +130,20 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleResponse"
+      security:
+      - bearerToken: []
     put:
       tags:
       - Module Operations
@@ -155,12 +163,20 @@ paths:
               $ref: "#/components/schemas/ModuleRequest"
         required: true
       responses:
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Module updated successfully
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleResponse"
+      security:
+      - bearerToken: []
     delete:
       tags:
       - Module Operations
@@ -174,8 +190,16 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
         "204":
           description: Module deleted successfully
+        "401":
+          description: Unauthorized
+      security:
+      - bearerToken: []
   /modules:
     get:
       tags:
@@ -184,14 +208,20 @@ paths:
       description: Returns a list of all modules
       operationId: getAllModules
       responses:
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/ModuleResponse"
+      security:
+      - bearerToken: []
     post:
       tags:
       - Module Operations
@@ -207,10 +237,21 @@ paths:
       responses:
         "201":
           description: Module created successfully
+          headers:
+            Location:
+              description: URI of the created Module
+              required: true
+              style: simple
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleResponse"
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
+      security:
+      - bearerToken: []
   /modules/{moduleId}/services:
     get:
       tags:
@@ -225,14 +266,22 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/SmartServiceResponse"
+      security:
+      - bearerToken: []
     post:
       tags:
       - Smart Service Operations
@@ -253,12 +302,25 @@ paths:
               $ref: "#/components/schemas/SmartServiceRequest"
         required: true
       responses:
-        "200":
-          description: Smart service created successfully
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
+        "201":
+          description: Smart Service created successfully
+          headers:
+            Location:
+              description: URI of the created Smart Service
+              required: true
+              style: simple
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SmartServiceResponse"
+      security:
+      - bearerToken: []
   /services:
     get:
       tags:
@@ -267,14 +329,20 @@ paths:
       description: Returns a list of all smart services
       operationId: getAllSmartServices
       responses:
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/SmartServiceResponse"
+      security:
+      - bearerToken: []
   /services/{serviceId}:
     get:
       tags:
@@ -289,12 +357,20 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Smart Service not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SmartServiceResponse"
+      security:
+      - bearerToken: []
     delete:
       tags:
       - Smart Service Operations
@@ -308,8 +384,16 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Smart Service not found
         "204":
-          description: Smart service deleted successfully
+          description: Smart Service deleted successfully
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
+      security:
+      - bearerToken: []
   /modules/{moduleId}/details:
     get:
       tags:
@@ -324,12 +408,20 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Module not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
-          description: OK
+          description: Success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleDetailsResponse"
+      security:
+      - bearerToken: []
   /modules/{moduleId}/services/{serviceId}:
     delete:
       tags:
@@ -349,8 +441,16 @@ paths:
         schema:
           type: string
       responses:
+        "404":
+          description: Module or Smart Service not found
         "204":
-          description: Service deleted from module successfully
+          description: Smart Service deleted from module successfully
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
+      security:
+      - bearerToken: []
 components:
   schemas:
     AssetConnectionConfig:
@@ -371,12 +471,6 @@ components:
     AssetOperationProviderConfig:
       type: object
       properties:
-        inputValidationMode:
-          type: string
-          enum:
-          - NONE
-          - REQUIRE_PRESENT
-          - REQUIRE_PRESENT_OR_DEFAULT
         inoutputValidationMode:
           type: string
           enum:
@@ -384,6 +478,12 @@ components:
           - REQUIRE_PRESENT
           - REQUIRE_PRESENT_OR_DEFAULT
         outputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
+        inputValidationMode:
           type: string
           enum:
           - NONE
@@ -443,10 +543,10 @@ components:
     EmbeddedDataSpecification:
       type: object
       properties:
-        dataSpecificationContent:
-          $ref: "#/components/schemas/DataSpecificationContent"
         dataSpecification:
           $ref: "#/components/schemas/Reference"
+        dataSpecificationContent:
+          $ref: "#/components/schemas/DataSpecificationContent"
     Extension:
       type: object
       properties:
@@ -454,10 +554,6 @@ components:
           type: string
         value:
           type: string
-        refersTo:
-          type: array
-          items:
-            $ref: "#/components/schemas/Reference"
         valueType:
           type: string
           enum:
@@ -491,6 +587,10 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
+        refersTo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:
@@ -561,6 +661,12 @@ components:
           type: string
         type:
           type: string
+        kind:
+          type: string
+          enum:
+          - CONCEPT_QUALIFIER
+          - TEMPLATE_QUALIFIER
+          - VALUE_QUALIFIER
         valueType:
           type: string
           enum:
@@ -594,12 +700,6 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        kind:
-          type: string
-          enum:
-          - CONCEPT_QUALIFIER
-          - TEMPLATE_QUALIFIER
-          - VALUE_QUALIFIER
         valueId:
           $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:

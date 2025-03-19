@@ -22,11 +22,16 @@ import eu.modapto.digitaltwinmanagement.model.response.ModuleDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleResponseDto;
 import eu.modapto.digitaltwinmanagement.service.ModuleService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -53,8 +58,14 @@ public class ModuleController {
     }
 
 
-    @Operation(summary = "Create a new module", description = "Creates a new module based on the provided details")
-    @ApiResponse(responseCode = "201", description = "Module created successfully")
+    @Operation(summary = "Create a new module", description = "Creates a new module based on the provided details", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Module created successfully", headers = {
+                    @Header(name = HttpHeaders.LOCATION, description = "URI of the created Module", required = true)
+            }),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @PostMapping
     public ResponseEntity<ModuleResponseDto> createModule(@RequestBody ModuleRequestDto moduleRequestDto) throws Exception {
         Module module = ModuleMapper.toEntity(moduleRequestDto);
@@ -66,7 +77,12 @@ public class ModuleController {
     }
 
 
-    @Operation(summary = "Get all modules", description = "Returns a list of all modules")
+    @Operation(summary = "Get all modules", description = "Returns a list of all modules", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping
     public List<ModuleResponseDto> getAllModules() {
         return moduleService.getAllModules().stream()
@@ -75,30 +91,52 @@ public class ModuleController {
     }
 
 
-    @Operation(summary = "Get module by ID", description = "Returns an existing module by its ID")
+    @Operation(summary = "Get module by ID", description = "Returns an existing module by its ID", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Module not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping("/{moduleId}")
     public ModuleResponseDto getModule(@PathVariable String moduleId) {
         return ModuleMapper.toDto(moduleService.getModuleById(moduleId));
     }
 
 
-    @Operation(summary = "Get module details by ID", description = "Returns the details of an existing module by its ID")
+    @Operation(summary = "Get module details by ID", description = "Returns the details of an existing module by its ID", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Success"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Module not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @GetMapping("/{moduleId}/details")
     public ModuleDetailsResponseDto getModuleDetails(@PathVariable String moduleId) throws SerializationException {
         return ModuleMapper.toDetailsDto(moduleService.getModuleById(moduleId));
     }
 
 
-    @Operation(summary = "Update an existing module", description = "Updates the details of an existing module")
-    @ApiResponse(responseCode = "200", description = "Module updated successfully")
+    @Operation(summary = "Update an existing module", description = "Updates the details of an existing module", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Module updated successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Module not found", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
+    })
     @PutMapping("/{moduleId}")
     public ModuleResponseDto updateModule(@PathVariable String moduleId, @RequestBody ModuleRequestDto module) throws Exception {
         return ModuleMapper.toDto(moduleService.updateModule(moduleId, ModuleMapper.toEntity(module)));
     }
 
 
-    @Operation(summary = "Delete a module", description = "Deletes a module by its ID")
-    @ApiResponse(responseCode = "204", description = "Module deleted successfully")
+    @Operation(summary = "Delete a module", description = "Deletes a module by its ID", security = @SecurityRequirement(name = "bearerToken"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Module deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Module not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
     @DeleteMapping("/{moduleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteModule(@PathVariable String moduleId) throws Exception {

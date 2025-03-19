@@ -21,6 +21,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.exception.ValueFormatExceptio
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.Datatype;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.PropertyValue;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.SubmodelElementCollectionValue;
+import eu.modapto.digitaltwinmanagement.config.ObjectMapperConfig;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceFinishedPayload;
@@ -40,7 +41,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 
 
-@SpringBootTest
+@SpringBootTest(classes = ObjectMapperConfig.class)
 class EventSerializationTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventSerializationTest.class);
