@@ -39,15 +39,34 @@ dt.deployment.docker.host=tcp://localhost:2375 // set to match your docker daemo
 
 ## API
 The API can be found at `/API Interface`.
-When running, you can also access the API documentation at http://localhost:8080/swagger-ui.html
+When running, you can also access the API documentation at /api/dtm/swagger
+
+## Examples
+
+In /examples you can find two docker-compose yaml files `docker-compose.yml` and `docker-compose-remote-service-catalog.yml`.
+Similar to the compose files, you also find Postman collections `DT Management Test Local.postman_collection.json` and `DT Management Test Local With Remote Service Catalog.postman_collection.json`.
+
+With the first one, you can start a fully local docker compose containing DTM with a Postgres database, Kafka, and a service catalog mock.
+With the second one, you start almost the same but it is configured to use the live service catalog.
+
+Before running any compose file, you need to update the `.env` file with at least the current dir on your local system (i.e. the absolute path where the `examples` folder resides including /examples at the end).
+You may also need to provide docker credentials in case docker needs to fetch some of the images.
+
+Once a compose file is up and running, open the corresponding Postman collection and start running the request in order.
 
 ## Configuration
-Configuration happens via Spring framework. The typical way to configure the software is by providing an `application.properties` file.
+Configuration happens via Spring framework.
+The typical way to configure the software is by providing an `application.properties` file.
+You can also override configuration properties using environment variables [as described in the Spring documentation](https://docs.spring.io/spring-boot/docs/2.1.x/reference/html/boot-features-external-config.html#boot-features-external-config-relaxed-binding-from-environment-variables).
 
 The following configuration parameters can be used (set to default values in the example)
 
 ```YAML
-### Other MODAPTO components
+### SECURITY
+spring.security.oauth2.resourceserver.jwt.issuer-uri=
+spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
+
+### MODAPTO
 # The hostname of the Service Catalog component
 modapto.service-catalogue.host=https://services.modapto.atc.gr
 
@@ -57,79 +76,67 @@ modapto.service-catalogue.path=/micro-service-controller-rest/rest/msc/callMicro
 # The URL of the Kafka server of the MessageBus component
 modapto.messagebus.url=${MESSAGEBUS_KAFKA_URL:}
 
-### DTM configuration
-# Sets the deployment type of the DTM. This must be set correctly for the DTM to work (i.e. when running in docker set to 'DOCKER')
-dt-management.deployment.type=${DTM_DEPLOYMENT_TYPE:INTERNAL}
-
+### DTM
 # Toggles HTTP proxy server for Digital Twins
 dt-management.useProxy=true
 
-# The hostname that DTM uses when returning URLs to the outside world
-dt-management.hostname=${DTM_HOSTNAME:localhost}
+# If true, DTs are exposed using the container name and internal port, otherwise using hostname and the mapped port. This only takes effect if `dt-management.useProxy=false`
+dt-management.exposeDTsViaContainerName=false
+
+# Sets the deployment type of the DTM. This must be set correctly for the DTM to work (i.e. when running in docker set to 'DOCKER')
+dt-management.deployment.type=INTERNAL
 
 # The hostname that DTM uses when returning URLs to the outside world
-dt-management.Port=${DTM_PORT:8080}
+dt-management.hostname=localhost
+
+# The name of the docker container DTM is running in. If not running inside a docker container this property is ignored.
+dt-management.docker.container.name=${HOSTNAME:}
+
+# The name of the docker network the DTM is connected to. If not running inside a docker container this property is ignored.
+dt-management.docker.network=
+
+# The port that DTM uses when returning URLs to the outside world
+dt-management.port=8080
+
+# The timeout for checking the liveliness after starting new DTs (in ms)
+dt-management.deployment.liveliness-check.timeout=100000
+
+# The interval for checking the liveliness after starting new DTs (in ms)
+dt-management.deployment.liveliness-check.interval=500
 
 # Messages that are to be published via Kafka are first put in a queue and then handled asynchronously.
 # Size of the queue
-dt-management.kafka.queue.size=${DTM_KAFKA_QUEUE_SIZE:100}
+dt-management.kafka.queue.size=100
 
 # Number of threads propcessing the queue
-dt-management.kafka.thread.count=${DTM_KAFKA_THREAD_COUNT:1}
+dt-management.kafka.thread.count=1
 
 # DT Management starts an MQTT server that all DTs publish their events to.
 # Hostname used to start the MQTT server on
-dt-management.events.mqtt.host=${DTM_EVENTS_MQTT_HOST:localhost}
+dt-management.events.mqtt.host=localhost
 
 # Port used to start the MQTT server on
-dt-management.events.mqtt.port=${DTM_EVENTS_MQTT_PORT:1883}
+dt-management.events.mqtt.port=1883
+
+# DTs connect to the MQTT server embedded in DTM. When both are running in docker, this property specifies the hostname under which the DT can contact the DTM. If not provided, the docker container name from `dt-management.docker.container.name` is used.
+dt-management.events.mqtt.host-from-container=
 
 # Messages received via MQTT are first put in a queue and then handled asynchronously.
 # Size of the queue
-dt-management.events.mqtt.queue.size=${DTM_EVENTS_MQTT_QUEUE_SIZE:100}
+dt-management.events.mqtt.queue.size=100
 
 # Number of threads propcessing the queue
-dt-management.events.mqtt.thread.count=${DTM_EVENTS_MQTT_THREAD_COUNT:1}
+dt-management.events.mqtt.thread.count=1
 
-### DT deployment via Docker
+### DT
 # When DTs are deployed via docker, this requires to create some temp files that are then mapped into the container. When DT Management is running in docker itself and using the host docker daemon, this might create some issues with access to temp directories.
 # In this case, you need to manually mount a volume to '/tmp/dt-context' to the DTM container (with write access) and you also need to provide the directory mounted in this config property.
-dt.deployment.docker.tmpDirHostMapping=${DT_MOUNT_DIR:}
-
-# Docker daemon to use when deplyoing DTs
-dt.deployment.docker.host=${DOCKER_HOST:tcp://127.0.0.1:2375}
-
-# Docker registry URL to use to fetch the DT image
-dt.deployment.docker.registryUrl=${DT_DOCKER_REGISTRY_URL:ghcr.io}
-
-# Docker registry username to use to fetch the DT image
-dt.deployment.docker.registryUsername=${DT_DOCKER_REGISTRY_USERNAME:}
-
-# Docker registry password to use to fetch the DT image
-dt.deployment.docker.registryPassword=${DT_DOCKER_REGISTRY_PASSWORD:}
+dt.deployment.docker.tmpDirHostMapping=
 
 # Docker image to use when starting DTs
-dt.deployment.docker.image=${DT_DOCKER_IMAGE:ghcr.io/modapto/digital-twin:latest}
+dt.deployment.docker.image=ghcr.io/modapto/digital-twin:latest
 
-# Smart Service Deployment
-# Docker daemon to use when starting internal Smart Services
-dt-management.service.internal.deployment.docker.host=${DOCKER_HOST:tcp://127.0.0.1:2375}
-
-# Docker registry URL to use to fetch Internal Smart Service docker images
-dt-management.service.internal.deployment.docker.registryUrl=${INTERNAL_SERVICE_DOCKER_REGISTRY_URL:ghcr.io}
-
-# Docker registry username to use to fetch Internal Smart Service docker images
-dt-management.service.internal.deployment.docker.registryUsername=${INTERNAL_SERVICE_DOCKER_REGISTRY_USERNAME}
-
-# Docker registry password to use to fetch Internal Smart Service docker images
-dt-management.service.internal.deployment.docker.registryPassword=${INTERNAL_SERVICE_DOCKER_REGISTRY_PASSWORD}
-
-
-### System configuration
-# Database cshema to use
-spring.jpa.properties.eclipselink.schema=dt-management
-
-### DB - Memory
+### DB MEMORY
 # Configuration for in-memory H2 database
 spring.datasource.url=jdbc:h2:mem:testdb
 spring.datasource.driverClassName=org.h2.Driver
@@ -139,34 +146,29 @@ spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
 spring.h2.console.enabled=true
 spring.jpa.hibernate.ddl-auto=update
 
-### DB - Postgres
-# Example on how to user a PostgreSQL database
-#spring.h2.console.enabled=false
-#spring.datasource.driverClassName=org.postgresql.Driver
-#spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-#spring.datasource.url=jdbc:postgresql://...:5432/dtm
-#spring.datasource.username=...
-#spring.datasource.password=...
-#spring.jpa.hibernate.ddl-auto=update
+### DB POSTGRES
+# Configuration for PostgreSQL database
+spring.h2.console.enabled=false
+spring.datasource.driverClassName=org.postgresql.Driver
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.datasource.url=jdbc:postgresql://...:5432/dtm
+spring.datasource.username=...
+spring.datasource.password=...
+spring.jpa.hibernate.ddl-auto=update
 
-### Testing & Debugging
-
-# Log level general
+### LOGGING
 logging.level.root=INFO
-
-# Log level Spring
-logging.level.org.springframework.web=debug
-
-# Log level JPA
+logging.level.eu.modapto.digitaltwinmanagement=INFO
+logging.level.org.springframework.web=INFO
 spring.jpa.properties.eclipselink.logging.level=WARNING
 
-# DT deployment type for unit tests
-dt.deployment.type.default=DOCKER
+# Toggles if logs from docker containers started by DTM should be included in the DTM log. This is helpful when you do not have access to the logs of the container directly.
+dt-management.includeDockerLogs=false
 
-# Docker Registry internal port for unit tests
-dt.management.test.localDockerRegistryInternalPort=5000
+### SYSTEM
+# Database schema to use
+spring.jpa.properties.eclipselink.schema=dt-management
 
-# Docker Registry external port for unit tests
-dt.management.test.localDockerRegistryExposedPort=5000
-
+# Specifies the logging pattern for console logging
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5(%level) %-26.26(%.-25([%logger{0})]) : %msg%n
 ```

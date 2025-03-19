@@ -14,8 +14,8 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
-import eu.modapto.digitaltwinmanagement.model.security.JwtAuthConverter;
-import eu.modapto.digitaltwinmanagement.model.security.UnauthorizedEntryPoint;
+import eu.modapto.digitaltwinmanagement.security.JwtAuthConverter;
+import eu.modapto.digitaltwinmanagement.security.UnauthorizedEntryPoint;
 import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
