@@ -19,7 +19,6 @@ import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
 import java.time.LocalDateTime;
-import java.util.Map;
 
 
 public class Constants {
@@ -68,22 +67,11 @@ public class Constants {
 
     public static final String KEYCLOAK_CONTAINER_REALM_FILE = "/opt/keycloak/data/import/realm-export.json";
     public static final String KEYCLOAK_CONFIG_FILE = "/keycloak/realm-export.json";
-    public static final String KEYCLOAK_REALM_PLACEHOLDER = "${realm}";
-    public static final String KEYCLOAK_CLIENT_ID_PLACEHOLDER = "${client}";
-    public static final String KEYCLOAK_CLIENT_SECRET_PLACEHOLDER = "${client-secret}";
-    public static final String KEYCLOAK_USERNAME_PLACEHOLDER = "${username}";
-    public static final String KEYCLOAK_PASSWORD_PLACEHOLDER = "${password}";
     public static final String KEYCLOAK_REALM = "dtm-dev-realm";
     public static final String KEYCLOAK_CLIENT_ID = "dtm-dev-client";
     public static final String KEYCLOAK_CLIENT_SECRET = "dtm-dev-client-secret";
     public static final String KEYCLOAK_USERNAME = "dtm-dev-username";
     public static final String KEYCLOAK_PASSWORD = "dtm-dev-password";
-    public static final Map<String, String> KEYCLOAK_CONFIG_REPLACEMENTS = Map.of(
-            KEYCLOAK_REALM_PLACEHOLDER, KEYCLOAK_REALM,
-            KEYCLOAK_CLIENT_ID_PLACEHOLDER, KEYCLOAK_CLIENT_ID,
-            KEYCLOAK_CLIENT_SECRET_PLACEHOLDER, KEYCLOAK_CLIENT_SECRET,
-            KEYCLOAK_USERNAME_PLACEHOLDER, KEYCLOAK_USERNAME,
-            KEYCLOAK_PASSWORD_PLACEHOLDER, KEYCLOAK_PASSWORD);
 
     // Events
     public static final String PATH_EVENT = "event";

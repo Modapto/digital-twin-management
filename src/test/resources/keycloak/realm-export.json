@@ -1,7 +1,7 @@
 
 {
-	"id": "${realm}",
-	"realm": "${realm}",
+	"id": "dtm-dev-realm",
+	"realm": "dtm-dev-realm",
 	"notBefore": 0,
 	"defaultSignatureAlgorithm": "RS256",
 	"revokeRefreshToken": false,
@@ -47,11 +47,11 @@
 	"defaultRole":
 	{
 		"id": "ac61d047-f254-407a-bf56-349e57d456b0",
-		"name": "default-roles-${realm}",
+		"name": "default-roles-dtm-dev-realm",
 		"description": "${role_default-roles}",
 		"composite": true,
 		"clientRole": false,
-		"containerId": "${realm}"
+		"containerId": "dtm-dev-realm"
 	},
 	"requiredCredentials": [
 		"password"
@@ -115,13 +115,13 @@
 			"clientId": "account",
 			"name": "${client_account}",
 			"rootUrl": "${authBaseUrl}",
-			"baseUrl": "/realms/${realm}/account/",
+			"baseUrl": "/realms/dtm-dev-realm/account/",
 			"surrogateAuthRequired": false,
 			"enabled": true,
 			"alwaysDisplayInConsole": false,
 			"clientAuthenticatorType": "client-secret",
 			"redirectUris": [
-				"/realms/${realm}/account/*"
+				"/realms/dtm-dev-realm/account/*"
 			],
 			"webOrigins": [],
 			"notBefore": 0,
@@ -156,13 +156,13 @@
 			"clientId": "account-console",
 			"name": "${client_account-console}",
 			"rootUrl": "${authBaseUrl}",
-			"baseUrl": "/realms/${realm}/account/",
+			"baseUrl": "/realms/dtm-dev-realm/account/",
 			"surrogateAuthRequired": false,
 			"enabled": true,
 			"alwaysDisplayInConsole": false,
 			"clientAuthenticatorType": "client-secret",
 			"redirectUris": [
-				"/realms/${realm}/account/*"
+				"/realms/dtm-dev-realm/account/*"
 			],
 			"webOrigins": [],
 			"notBefore": 0,
@@ -281,12 +281,12 @@
 		},
 		{
 			"id": "7a757431-6c6d-4cfe-a10e-a9adf9455a0c",
-			"clientId": "${client}",
+			"clientId": "dtm-dev-client",
 			"surrogateAuthRequired": false,
 			"enabled": true,
 			"alwaysDisplayInConsole": false,
 			"clientAuthenticatorType": "client-secret",
-			"secret": "${client-secret}",
+			"secret": "dtm-dev-client-secret",
 			"redirectUris": [],
 			"webOrigins": [],
 			"notBefore": 0,
@@ -362,13 +362,13 @@
 			"clientId": "security-admin-console",
 			"name": "${client_security-admin-console}",
 			"rootUrl": "${authAdminUrl}",
-			"baseUrl": "/admin/${realm}/console/",
+			"baseUrl": "/admin/dtm-dev-realm/console/",
 			"surrogateAuthRequired": false,
 			"enabled": true,
 			"alwaysDisplayInConsole": false,
 			"clientAuthenticatorType": "client-secret",
 			"redirectUris": [
-				"/admin/${realm}/console/*"
+				"/admin/dtm-dev-realm/console/*"
 			],
 			"webOrigins": [
 				"+"
@@ -1839,15 +1839,15 @@
 	},
 	"users": [
 		{
-			"username": "${username}",
-			"email": "${username}@example.com",
-			"firstName": "${username}",
+			"username": "dtm-dev-username",
+			"email": "dtm-dev-username@example.com",
+			"firstName": "dtm-dev-username",
 			"lastName": "Test",
 			"enabled": true,
 			"credentials": [
 				{
 					"type": "password",
-					"value": "${password}"
+					"value": "dtm-dev-password"
 				}
 			],
 			"clientRoles":

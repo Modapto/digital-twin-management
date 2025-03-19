@@ -124,7 +124,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
 
@@ -282,7 +281,7 @@ class DeploymentTest {
 
     private static void initSecurity() throws IOException {
         keycloak = new KeycloakContainer()
-                .withCopyToContainer(Transferable.of(createKeycloakConfigFile()), KEYCLOAK_CONTAINER_REALM_FILE);
+                .withRealmImportFile(KEYCLOAK_CONFIG_FILE);
         keycloak.start();
         token = KeycloakBuilder.builder()
                 .serverUrl(keycloak.getAuthServerUrl())
@@ -294,15 +293,6 @@ class DeploymentTest {
                 .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                 .build()
                 .tokenManager().getAccessToken().getToken();
-    }
-
-
-    private static String createKeycloakConfigFile() throws IOException {
-        String content = Files.readString(new ClassPathResource(KEYCLOAK_CONFIG_FILE).getFile().toPath());
-        for (var entry: KEYCLOAK_CONFIG_REPLACEMENTS.entrySet()) {
-            content = content.replace(entry.getKey(), entry.getValue());
-        }
-        return content;
     }
 
 
