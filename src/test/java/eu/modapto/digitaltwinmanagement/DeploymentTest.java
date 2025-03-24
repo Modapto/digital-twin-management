@@ -15,13 +15,12 @@
 package eu.modapto.digitaltwinmanagement;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static eu.modapto.digitaltwinmanagement.util.Constants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.timeout;
@@ -36,6 +35,7 @@ import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.Container;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import dasniko.testcontainers.keycloak.KeycloakContainer;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
@@ -94,6 +94,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.keycloak.OAuth2Constants;
+import org.keycloak.admin.client.KeycloakBuilder;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
@@ -132,7 +134,9 @@ class DeploymentTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentTest.class);
     private static final WireMockServer SERVICE_CATALOG_MOCK = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+
     private static GenericContainer localDockerRegistry;
+    private static KeycloakContainer keycloak;
 
     private static String localDockerRegistryUrl;
 
@@ -193,11 +197,15 @@ class DeploymentTest {
     @Autowired
     private ObjectMapper mapper;
 
+    private static String token;
+
     private static boolean initialized = false;
 
     @DynamicPropertySource
-    static void dynamicProperties(DynamicPropertyRegistry registry) {
+    static void dynamicProperties(DynamicPropertyRegistry registry) throws IOException {
+        initSecurity();
         registry.add("dt-management.events.mqtt.port", () -> PortHelper.findFreePort());
+        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> keycloak.getAuthServerUrl() + "/realms/" + KEYCLOAK_REALM);
     }
 
 
@@ -235,25 +243,6 @@ class DeploymentTest {
     }
 
 
-    private void initServiceCatalogueMock() throws SerializationException, IOException {
-        SERVICE_CATALOG_MOCK.start();
-        config.setServiceCatalogueHost(SERVICE_CATALOG_MOCK.baseUrl());
-        mockServiceInCatalog(EMBEDDED_SMART_SERVICE_ID, EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE);
-        mockServiceInCatalog(INTERNAL_SMART_SERVICE_ID, INTERNAL_ADD_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
-        mockServiceInCatalog(INTERNAL_SMART_SERVICE_WITH_BLOB_ID, INTERNAL_ADD_WITH_BLOB_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
-        mockServiceInCatalog(EXTERNAL_SMART_SERVICE_ID, EXTERNAL_CATALOG_RESPONSE);
-    }
-
-
-    private void mockServiceInCatalog(String serviceId, String responsePayload) throws JsonProcessingException {
-        SERVICE_CATALOG_MOCK.stubFor(get(urlEqualTo(String.format(config.getServiceCataloguePath(), serviceId)))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                        .withBody(responsePayload)));
-    }
-
-
     private void initLocalDockerRegistry() {
         localDockerRegistry = new GenericContainer<>(DockerImageName.parse(testConfig.getLocalDockerRegistryImage()))
                 .withExposedPorts(testConfig.getLocalDockerRegistryInternalPort())
@@ -268,6 +257,42 @@ class DeploymentTest {
         LOGGER.info("local registry started: {}", localDockerRegistryUrl);
         createAndLocallyPublishDockerImage(INTERNAL_SERVICE_DOCKERFILE, INTERNAL_SERVICE_IMAGE_NAME);
         createAndLocallyPublishDockerImage(INTERNAL_SERVICE_WITH_BLOB_DOCKERFILE, INTERNAL_SERVICE_WITH_BLOB_IMAGE_NAME);
+    }
+
+
+    private void initServiceCatalogueMock() throws SerializationException, IOException {
+        SERVICE_CATALOG_MOCK.start();
+        config.setServiceCatalogueHost(SERVICE_CATALOG_MOCK.baseUrl());
+        mockServiceInCatalog(EMBEDDED_SMART_SERVICE_ID, EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE);
+        mockServiceInCatalog(INTERNAL_SMART_SERVICE_ID, INTERNAL_ADD_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
+        mockServiceInCatalog(INTERNAL_SMART_SERVICE_WITH_BLOB_ID, INTERNAL_ADD_WITH_BLOB_CATALOG_RESPONSE.replace("${registry.url}", localDockerRegistryUrl));
+        mockServiceInCatalog(EXTERNAL_SMART_SERVICE_ID, EXTERNAL_CATALOG_RESPONSE);
+    }
+
+
+    private void mockServiceInCatalog(String serviceId, String responsePayload) throws JsonProcessingException {
+        SERVICE_CATALOG_MOCK.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo(String.format(config.getServiceCataloguePath(), serviceId)))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(responsePayload)));
+    }
+
+
+    private static void initSecurity() throws IOException {
+        keycloak = new KeycloakContainer()
+                .withRealmImportFile(KEYCLOAK_CONFIG_FILE);
+        keycloak.start();
+        token = KeycloakBuilder.builder()
+                .serverUrl(keycloak.getAuthServerUrl())
+                .realm(KEYCLOAK_REALM)
+                .clientId(KEYCLOAK_CLIENT_ID)
+                .clientSecret(KEYCLOAK_CLIENT_SECRET)
+                .username(KEYCLOAK_USERNAME)
+                .password(KEYCLOAK_PASSWORD)
+                .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
+                .build()
+                .tokenManager().getAccessToken().getToken();
     }
 
 
@@ -325,13 +350,30 @@ class DeploymentTest {
 
 
     @Test
+    void testAccessWithoutToken() throws Exception {
+        mockMvc.perform(get(REST_PATH_MODULES))
+                .andExpect(status().isUnauthorized());
+    }
+
+
+    @Test
+    void testAccessWithInvalidToken() throws Exception {
+        mockMvc.perform(get(REST_PATH_MODULES)
+                .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + INVALID_TOKEN))
+                .andExpect(status().isUnauthorized());
+    }
+
+
+    @Test
     void testCreateModule() throws Exception {
         ModuleRequestDto payload = ModuleRequestDto.builder()
                 .aas(asJsonBase64(newDefaultEnvironment()))
                 .type(testConfig.getDtDeplyomentType())
                 .format(DataFormat.JSON)
                 .build();
+
         MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(payload)))
                 .andDo(MockMvcResultHandlers.print())
@@ -348,6 +390,7 @@ class DeploymentTest {
     void testUpdateModule() throws Exception {
         Environment environment = newDefaultEnvironment();
         MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(
                         ModuleRequestDto.builder()
@@ -369,6 +412,7 @@ class DeploymentTest {
                         .valueType(DataTypeDefXsd.STRING)
                         .build());
         result = mockMvc.perform(put(String.format(REST_PATH_MODULE_TEMPLATE, moduleId))
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(ModuleRequestDto.builder()
                         .aas(asJsonBase64(environment))
@@ -391,6 +435,7 @@ class DeploymentTest {
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -412,6 +457,7 @@ class DeploymentTest {
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -452,6 +498,7 @@ class DeploymentTest {
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -496,6 +543,7 @@ class DeploymentTest {
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -522,6 +570,7 @@ class DeploymentTest {
         assertKafkaEvent(moduleCreatedEvent(module.getId()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(
                                 SmartServiceRequestDto.builder()
@@ -541,14 +590,14 @@ class DeploymentTest {
     void testDeleteService() throws Exception {
         String serviceId = "test-delete-service";
         mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
-
         Module module = moduleService.createModule(newDefaultModule());
         SmartService service = smartServiceService.addServiceToModule(
                 module.getId(),
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
                         .build());
-        mockMvc.perform(delete(String.format(REST_PATH_SERVICE_TEMPLATE, service.getId())))
+        mockMvc.perform(delete(String.format(REST_PATH_SERVICE_TEMPLATE, service.getId()))
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken()))
                 .andExpect(status().isNoContent());
         assertThat(smartServiceRepository.count()).isZero();
         assertThat(moduleRepository.findAll()).flatExtracting(Module::getServices).extracting(SmartService::getId).doesNotContain(service.getId());
@@ -559,14 +608,14 @@ class DeploymentTest {
     void testDeleteModule() throws Exception {
         String serviceId = "test-delete-module";
         mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
-
         Module module = moduleService.createModule(newDefaultModule());
         SmartService service = smartServiceService.addServiceToModule(
                 module.getId(),
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
                         .build());
-        mockMvc.perform(delete(String.format(REST_PATH_MODULE_TEMPLATE, module.getId())))
+        mockMvc.perform(delete(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()))
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken()))
                 .andExpect(status().isNoContent());
         assertThat(moduleRepository.count()).isZero();
         assertThat(smartServiceRepository.findAll()).extracting(SmartService::getModule).extracting(Module::getId).doesNotContain(service.getId());
@@ -743,6 +792,11 @@ class DeploymentTest {
             fail(String.format("invalid response header (name: %s, value: %s)", HttpHeaders.LOCATION, result.getResponse().getHeader(HttpHeaders.LOCATION)));
         }
         return matcher.group(1);
+    }
+
+
+    private static String getBearerToken() {
+        return BEARER_PREFIX + token;
     }
 
     private class EventInfo<T extends AbstractEvent> {

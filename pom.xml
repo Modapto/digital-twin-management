@@ -19,6 +19,7 @@
         <fmi4j.version>0.38.0</fmi4j.version>
         <java.version>17</java.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
+        <keycloak.version>26.0.4</keycloak.version>
         <maven.plugin.spotless.version>2.43.0</maven.plugin.spotless.version>
         <moquette.version>0.15.2</moquette.version>
         <paho.version>1.2.5</paho.version>
@@ -29,6 +30,7 @@
         <spring-boot-starter.version>3.3.5</spring-boot-starter.version>
         <springdoc-openapi-starter-webmvc-ui.version>2.6.0</springdoc-openapi-starter-webmvc-ui.version>
         <start-class>eu.modapto.digitaltwinmanagement.App</start-class>
+        <testcontainers.keycloak.version>3.6.0</testcontainers.keycloak.version>
         <wiremock-spring-boot.version>2.1.3</wiremock-spring-boot.version>
     </properties>
     <dependencies>
@@ -47,6 +49,12 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.dasniko</groupId>
+            <artifactId>testcontainers-keycloak</artifactId>
+            <version>${testcontainers.keycloak.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.github.docker-java</groupId>
@@ -192,6 +200,12 @@
             <artifactId>jaxb-runtime</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>${keycloak.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
         </dependency>
@@ -221,6 +235,14 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
@@ -235,6 +257,11 @@
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
