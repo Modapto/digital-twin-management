@@ -98,7 +98,7 @@ public class HttpProxyController {
         }
         catch (Exception e) {
             LOGGER.debug("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(String.format("unkown error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", e.getMessage()));
+            return ResponseEntity.internalServerError().body(String.format("unkown error proxying HTTP call to Digital Twin (moduleId: %s, reason: %s)", moduleId, e.getMessage()));
         }
     }
 
