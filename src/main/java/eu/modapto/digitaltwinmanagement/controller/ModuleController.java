@@ -14,7 +14,12 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
+import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
+import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
+import eu.modapto.digitaltwinmanagement.exception.InvalidModelException;
 import eu.modapto.digitaltwinmanagement.mapper.ModuleMapper;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
@@ -28,8 +33,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
+import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -49,7 +59,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/modules")
 @Tag(name = "Module Operations", description = "Operations related to module management")
 public class ModuleController {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModuleController.class);
     private final ModuleService moduleService;
 
     @Autowired
@@ -68,6 +78,7 @@ public class ModuleController {
     })
     @PostMapping
     public ResponseEntity<ModuleResponseDto> createModule(@RequestBody ModuleRequestDto moduleRequestDto) throws Exception {
+        validate(moduleRequestDto);
         Module module = ModuleMapper.toEntity(moduleRequestDto);
         module = moduleService.createModule(module);
         ModuleResponseDto result = ModuleMapper.toDto(module);
@@ -125,8 +136,9 @@ public class ModuleController {
             @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
     })
     @PutMapping("/{moduleId}")
-    public ModuleResponseDto updateModule(@PathVariable String moduleId, @RequestBody ModuleRequestDto module) throws Exception {
-        return ModuleMapper.toDto(moduleService.updateModule(moduleId, ModuleMapper.toEntity(module)));
+    public ModuleResponseDto updateModule(@PathVariable String moduleId, @RequestBody ModuleRequestDto moduleRequestDto) throws Exception {
+        validate(moduleRequestDto);
+        return ModuleMapper.toDto(moduleService.updateModule(moduleId, ModuleMapper.toEntity(moduleRequestDto)));
     }
 
 
@@ -143,4 +155,34 @@ public class ModuleController {
         moduleService.deleteModule(moduleId);
     }
 
+
+    private static void validate(ModuleRequestDto moduleRequestDto) throws InvalidModelException {
+        if (Objects.isNull(moduleRequestDto)) {
+            throw new InvalidModelException("Request must be non-empty");
+        }
+        if (StringHelper.isBlank(moduleRequestDto.getAas())) {
+            throw new InvalidModelException("Property 'aas' must be non-empty");
+        }
+
+        EnvironmentContext environmentContext;
+        try {
+            environmentContext = EnvironmentSerializationManager
+                    .deserializerFor(moduleRequestDto.getFormat())
+                    .read(new ByteArrayInputStream(EncodingHelper.base64Decode(moduleRequestDto.getAas()).getBytes()));
+        }
+        catch (Exception e) {
+            LOGGER.warn("Validation of AAS model failed because it is not deserializable (reason: {})", e.getMessage(), e);
+            throw new InvalidModelException(String.format("Invalid AAS model - could not be deserialized (reason: %s)", e.getMessage()));
+        }
+        if (Objects.isNull(environmentContext)) {
+            throw new InvalidModelException("Model must be non-null");
+        }
+        Environment environment = environmentContext.getEnvironment();
+        if (Objects.isNull(environment)) {
+            throw new InvalidModelException("Environment must be non-null");
+        }
+        if (Objects.isNull(environment.getAssetAdministrationShells()) || environment.getAssetAdministrationShells().size() != 1) {
+            throw new InvalidModelException("Model must contain exactly one Asset Administration Shell");
+        }
+    }
 }

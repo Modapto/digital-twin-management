@@ -76,6 +76,9 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.events.mqtt.port:1883}")
     private int mqttPort;
 
+    @Value("${dt-management.events.mqtt.max-message-size:10485760}")
+    private long mqttMaxMessageSize;
+
     @Value("${dt-management.events.mqtt.queue.size:100}")
     private int mqttQueueSize;
 

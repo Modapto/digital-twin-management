@@ -102,6 +102,7 @@ public class DigitalTwinEventForwarder {
         serverConfig.setProperty(BrokerConstants.PORT_PROPERTY_NAME, Integer.toString(config.getMqttPort()));
         serverConfig.setProperty(BrokerConstants.HOST_PROPERTY_NAME, config.getMqttHost());
         serverConfig.setProperty(BrokerConstants.ALLOW_ANONYMOUS_PROPERTY_NAME, "true");
+        serverConfig.setProperty(BrokerConstants.NETTY_MAX_BYTES_PROPERTY_NAME, Long.toString(config.getMqttMaxMessageSize()));
         LOGGER.debug("starting MQTT broker (port: {})", config.getMqttPort());
         mqttServer.startServer(serverConfig, List.of(new MqttInterceptHandler()), null, null, null);
     }
