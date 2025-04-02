@@ -47,12 +47,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules",
-					"protocol": "http",
+					"raw": "{{host}}/modules",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules"
 					]
@@ -66,12 +64,10 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules",
-					"protocol": "http",
+					"raw": "{{host}}/modules",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules"
 					]
@@ -85,12 +81,10 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules/{{moduleId}}/details",
-					"protocol": "http",
+					"raw": "{{host}}/modules/{{moduleId}}/details",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules",
 						"{{moduleId}}",
@@ -128,12 +122,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules/{{moduleId}}/services",
-					"protocol": "http",
+					"raw": "{{host}}/modules/{{moduleId}}/services",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules",
 						"{{moduleId}}",
@@ -210,12 +202,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules/{{moduleId}}/services",
-					"protocol": "http",
+					"raw": "{{host}}/modules/{{moduleId}}/services",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules",
 						"{{moduleId}}",
@@ -292,12 +282,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://{{host}}:{{port}}/modules/{{moduleId}}/services",
-					"protocol": "http",
+					"raw": "{{host}}/modules/{{moduleId}}/services",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules",
 						"{{moduleId}}",
@@ -361,12 +349,10 @@
 					}
 				},
 				"url": {
-					"raw": "https://{{host}}:{{port}}/modules/{{moduleId}}",
-					"protocol": "https",
+					"raw": "{{host}}/modules/{{moduleId}}",
 					"host": [
 						"{{host}}"
 					],
-					"port": "{{port}}",
 					"path": [
 						"modules",
 						"{{moduleId}}"
@@ -419,7 +405,7 @@
 					"\r",
 					"function isTokenValid(token, callback) {\r",
 					"    pm.sendRequest({\r",
-					"        url: 'http://' + server + '/realms/' + realm + '/protocol/openid-connect/token/introspect',\r",
+					"        url: server + '/realms/' + realm + '/protocol/openid-connect/token/introspect',\r",
 					"        method: 'POST',\r",
 					"        header: {\r",
 					"            'Content-Type': 'application/x-www-form-urlencoded'\r",
@@ -454,7 +440,7 @@
 					"\r",
 					"function requestNewToken() {\r",
 					"    pm.sendRequest({\r",
-					"        url: 'http://' + server + '/realms/' + realm + '/protocol/openid-connect/token',\r",
+					"        url: server + '/realms/' + realm + '/protocol/openid-connect/token',\r",
 					"        method: 'POST',\r",
 					"        header: {\r",
 					"            'Content-Type': 'application/x-www-form-urlencoded'\r",
@@ -462,11 +448,9 @@
 					"        body: {\r",
 					"            mode: 'urlencoded',\r",
 					"            urlencoded: [\r",
-					"                { key: 'grant_type', value: 'password' },\r",
+					"                { key: 'grant_type', value: 'client_credentials' },\r",
 					"                { key: 'client_id', value: clientId },\r",
-					"                { key: 'client_secret', value: clientSecret },\r",
-					"                { key: 'username', value: username },\r",
-					"                { key: 'password', value: password }\r",
+					"                { key: 'client_secret', value: clientSecret }\r",
 					"            ]\r",
 					"        }\r",
 					"    }, function (err, res) {\r",
@@ -503,11 +487,6 @@
 			"type": "string"
 		},
 		{
-			"key": "port",
-			"value": "8094",
-			"type": "string"
-		},
-		{
 			"key": "moduleId",
 			"value": "",
 			"type": "string"
@@ -525,16 +504,6 @@
 		{
 			"key": "embeddedServiceEndpoint",
 			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "keycloak-username",
-			"value": "dtm-dev-username",
-			"type": "string"
-		},
-		{
-			"key": "keycloak-password",
-			"value": "dtm-dev-password",
 			"type": "string"
 		},
 		{
