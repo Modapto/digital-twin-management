@@ -17,6 +17,9 @@ package eu.modapto.digitaltwinmanagement.controller;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
+import de.fraunhofer.iosb.ilt.faaast.service.model.exception.ValidationException;
+import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidator;
+import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidatorConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.exception.InvalidModelException;
@@ -171,8 +174,7 @@ public class ModuleController {
                     .read(new ByteArrayInputStream(EncodingHelper.base64Decode(moduleRequestDto.getAas()).getBytes()));
         }
         catch (Exception e) {
-            LOGGER.warn("Validation of AAS model failed because it is not deserializable (reason: {})", e.getMessage(), e);
-            throw new InvalidModelException(String.format("Invalid AAS model - could not be deserialized (reason: %s)", e.getMessage()));
+            throw new InvalidModelException(String.format("Invalid AAS model - could not be deserialized (reason: %s)", e.getMessage()), e);
         }
         if (Objects.isNull(environmentContext)) {
             throw new InvalidModelException("Model must be non-null");
@@ -183,6 +185,12 @@ public class ModuleController {
         }
         if (Objects.isNull(environment.getAssetAdministrationShells()) || environment.getAssetAdministrationShells().size() != 1) {
             throw new InvalidModelException("Model must contain exactly one Asset Administration Shell");
+        }
+        try {
+            ModelValidator.validate(environment, ModelValidatorConfig.ALL);
+        }
+        catch (ValidationException e) {
+            throw new InvalidModelException(String.format("Model failed to validate (reason: %s)", e.getMessage()), e);
         }
     }
 }

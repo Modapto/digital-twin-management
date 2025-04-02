@@ -18,4 +18,9 @@ public class InvalidModelException extends BadRequestException {
     public InvalidModelException(String message) {
         super(message);
     }
+
+
+    public InvalidModelException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
