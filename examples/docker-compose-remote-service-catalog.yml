@@ -69,10 +69,10 @@ services:
       POSTGRES_PASSWORD: dtm-db-password
     ports:
       - 5432:5432
-    networks:
-      - modapto
     volumes:
       - postgres_volume:/var/lib/postgresql/data
+    networks:
+      - modapto
 
   service-catalog-mock:
     image: mockserver/mockserver:latest
@@ -94,7 +94,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_DB: dev-mem
       KC_HEALTH_ENABLED: true
-      KC_HOSTNAME: localhost
+      KC_HOSTNAME: keycloak
     ports:
       - 8080:8080
       - 9000:9000
@@ -108,6 +108,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - modapto
 
   kafka-zookeeper:
     image: confluentinc/cp-zookeeper:latest
