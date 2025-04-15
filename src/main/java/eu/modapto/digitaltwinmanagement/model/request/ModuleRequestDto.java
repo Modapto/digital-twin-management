@@ -32,6 +32,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Schema(name = "ModuleRequest")
 public class ModuleRequestDto {
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String name;
+
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "base64-encoded")
     private String aas;
 

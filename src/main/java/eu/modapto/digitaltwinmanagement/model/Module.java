@@ -50,6 +50,12 @@ public class Module {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    private String name;
+
+    private int externalPort;
+
+    private String containerId;
+
     @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<SmartService> services = new ArrayList<>();
@@ -67,10 +73,6 @@ public class Module {
     @Transient
     @Builder.Default
     private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
-
-    private int externalPort;
-
-    private String containerId;
 
     @Transient
     @JsonIgnore

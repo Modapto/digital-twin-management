@@ -192,5 +192,8 @@ public class ModuleController {
         catch (ValidationException e) {
             throw new InvalidModelException(String.format("Model failed to validate (reason: %s)", e.getMessage()), e);
         }
+        if (StringHelper.isBlank(moduleRequestDto.getName())) {
+            moduleRequestDto.setName(environment.getAssetAdministrationShells().get(0).getIdShort());
+        }
     }
 }

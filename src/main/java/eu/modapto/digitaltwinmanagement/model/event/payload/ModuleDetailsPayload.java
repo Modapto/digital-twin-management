@@ -28,5 +28,8 @@ import lombok.NoArgsConstructor;
 public class ModuleDetailsPayload {
     @JsonProperty("id")
     private String moduleId;
+
+    private String name;
+
     private String endpoint;
 }

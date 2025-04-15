@@ -21,7 +21,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.dt.faaast.service.smt.simulation.FmuHelper;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -45,9 +45,13 @@ import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementCollection;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultSubmodelElementList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class EmbeddedSmartServiceHelper {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddedSmartServiceHelper.class);
 
     private static final Reference SEMANTIC_ID_SMT_SIMULATION = ReferenceBuilder.global("https://admin-shell.io/idta/SimulationModels/SimulationModels/1/0");
     private static final Reference SEMANTIC_ID_SIMULATION_MODEL = ReferenceBuilder.global("https://admin-shell.io/idta/SimulationModels/SimulationModel/1/0");
@@ -59,6 +63,8 @@ public class EmbeddedSmartServiceHelper {
     private static final String ID_SHORT_MODEL_FILE = "ModelFile";
     private static final String ID_SHORT_MODEL_FILE_VERSION = "ModelFileVersion";
     private static final String ID_SHORT_DIGITAL_FILE = "DigitalFile";
+    private static final String ID_SHORT_STEP_ARGUMENTS_TEMPLATE = "stepArgumentsTemplate";
+    private static final String ID_SHORT_STEP_RESULTS_TEMPLATE = "stepResultsTemplate";
 
     private static final String ARG_CURRENT_TIME_ID = "currentTime";
     private static final String ARG_TIME_STEP_ID = "timeStep";
@@ -118,7 +124,7 @@ public class EmbeddedSmartServiceHelper {
                 inputVariables.removeIf(x -> service.getInputParameters().stream()
                         .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
             }
-            List<OperationVariable> outputVariables = List.of(newMultiStepResult(FmuHelper.getOutputArgumentsMetadata(fmu)));
+            List<OperationVariable> outputVariables = new ArrayList<>(List.of(newMultiStepResult(FmuHelper.getOutputArgumentsMetadata(fmu))));
             if (Objects.nonNull(service.getOutputParameters()) && !service.getOutputParameters().isEmpty()) {
                 outputVariables.removeIf(x -> service.getOutputParameters().stream()
                         .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
@@ -127,7 +133,8 @@ public class EmbeddedSmartServiceHelper {
             operation.setInputVariables(inputVariables);
             operation.setOutputVariables(outputVariables);
         }
-        catch (IOException e) {
+        catch (Exception e) {
+            LOGGER.debug("Error loading FMU file", e);
             throw new IllegalArgumentException(String.format("Error loading FMU file (reason: %s)", e.getMessage()));
         }
     }
@@ -165,6 +172,7 @@ public class EmbeddedSmartServiceHelper {
                         .idShort(ARG_ARGS_PER_STEP_ID)
                         .typeValueListElement(AasSubmodelElements.SUBMODEL_ELEMENT_COLLECTION)
                         .value(new DefaultSubmodelElementCollection.Builder()
+                                .idShort(ID_SHORT_STEP_ARGUMENTS_TEMPLATE)
                                 .value(
                                         Stream.concat(
                                                 Stream.of(new DefaultProperty.Builder()
@@ -191,6 +199,7 @@ public class EmbeddedSmartServiceHelper {
                         .idShort(ARG_RESULT_PER_STEP_ID)
                         .typeValueListElement(AasSubmodelElements.SUBMODEL_ELEMENT_COLLECTION)
                         .value(new DefaultSubmodelElementCollection.Builder()
+                                .idShort(ID_SHORT_STEP_RESULTS_TEMPLATE)
                                 .value(
                                         Stream.concat(
                                                 Stream.of(new DefaultProperty.Builder()

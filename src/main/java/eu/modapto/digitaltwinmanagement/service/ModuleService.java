@@ -14,7 +14,9 @@
  */
 package eu.modapto.digitaltwinmanagement.service;
 
+import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
+import eu.modapto.digitaltwinmanagement.exception.BadRequestException;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.Module;
@@ -47,11 +49,20 @@ public class ModuleService {
 
 
     public Module createModule(Module module) throws Exception {
+        try {
+            if (StringHelper.isBlank(module.getName())) {
+                module.setName(module.getProvidedModel().getEnvironment().getAssetAdministrationShells().get(0).getIdShort());
+            }
+        }
+        catch (Exception e) {
+            throw new BadRequestException("Module name not provided and could not be autmatically resolved");
+        }
         Module result = moduleRepository.save(module);
         dtManager.deploy(module);
         kafkaBridge.publish(ModuleCreatedEvent.builder()
                 .payload(ModuleDetailsPayload.builder()
                         .moduleId(module.getId())
+                        .name(module.getName())
                         .endpoint(module.getExternalEndpoint())
                         .build())
                 .build());
@@ -72,6 +83,7 @@ public class ModuleService {
         kafkaBridge.publish(ModuleUpdatedEvent.builder()
                 .payload(ModuleDetailsPayload.builder()
                         .moduleId(module.getId())
+                        .name(module.getName())
                         .endpoint(module.getExternalEndpoint())
                         .build())
                 .build());

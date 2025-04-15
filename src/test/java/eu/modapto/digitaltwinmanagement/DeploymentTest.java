@@ -366,7 +366,9 @@ class DeploymentTest {
 
     @Test
     void testCreateModule() throws Exception {
+        String moduleName = "MyNewModule";
         ModuleRequestDto payload = ModuleRequestDto.builder()
+                .name(moduleName)
                 .aas(asJsonBase64(newDefaultEnvironment()))
                 .type(testConfig.getDtDeplyomentType())
                 .format(DataFormat.JSON)
@@ -382,7 +384,7 @@ class DeploymentTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andReturn();
         String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
-        assertKafkaEvent(moduleCreatedEvent(moduleId));
+        assertKafkaEvent(moduleCreatedEvent(moduleId, moduleName));
     }
 
 
@@ -395,6 +397,7 @@ class DeploymentTest {
                 .content(mapper.writeValueAsString(
                         ModuleRequestDto.builder()
                                 .aas(asJsonBase64(environment))
+                                .name(AAS_ID_SHORT)
                                 .type(testConfig.getDtDeplyomentType())
                                 .format(DataFormat.JSON)
                                 .build())))
@@ -404,7 +407,7 @@ class DeploymentTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andReturn();
         String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
-        assertKafkaEvent(moduleCreatedEvent(moduleId));
+        assertKafkaEvent(moduleCreatedEvent(moduleId, AAS_ID_SHORT));
         environment.getSubmodels().get(0).getSubmodelElements().add(
                 new DefaultProperty.Builder()
                         .idShort("newProperty")
@@ -425,14 +428,14 @@ class DeploymentTest {
                 .andReturn();
         assertTrue(moduleService.getModuleById(moduleId).getActualModel().getEnvironment().getSubmodels().get(0).getSubmodelElements().stream()
                 .anyMatch(x -> Objects.equals("newProperty", x.getIdShort())));
-        assertKafkaEvent(moduleUpdatedEvent(moduleId));
+        assertKafkaEvent(moduleUpdatedEvent(moduleId, AAS_ID_SHORT));
     }
 
 
     @Test
     void testCreateEmbeddedService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
-        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .header(HttpHeaders.AUTHORIZATION, getBearerToken())
@@ -454,7 +457,7 @@ class DeploymentTest {
     @Test
     void testCreateInternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
-        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .header(HttpHeaders.AUTHORIZATION, getBearerToken())
@@ -495,7 +498,7 @@ class DeploymentTest {
                         .build())
                 .type(testConfig.getDtDeplyomentType())
                 .build());
-        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .header(HttpHeaders.AUTHORIZATION, getBearerToken())
@@ -540,7 +543,7 @@ class DeploymentTest {
                         .build())
                 .type(testConfig.getDtDeplyomentType())
                 .build());
-        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .header(HttpHeaders.AUTHORIZATION, getBearerToken())
@@ -567,7 +570,7 @@ class DeploymentTest {
     @Test
     void testCreateExternalService() throws Exception {
         Module module = moduleService.createModule(newDefaultModule());
-        assertKafkaEvent(moduleCreatedEvent(module.getId()));
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
         MockHttpServletResponse response = mockMvc.perform(
                 post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
                         .header(HttpHeaders.AUTHORIZATION, getBearerToken())
@@ -620,7 +623,7 @@ class DeploymentTest {
         assertThat(moduleRepository.count()).isZero();
         assertThat(smartServiceRepository.findAll()).extracting(SmartService::getModule).extracting(Module::getId).doesNotContain(service.getId());
         assertKafkaEvent(
-                moduleCreatedEvent(module.getId()),
+                moduleCreatedEvent(module.getId(), module.getName()),
                 moduleDeletedEvent(module.getId()));
     }
 
@@ -629,6 +632,7 @@ class DeploymentTest {
         return new DefaultEnvironment.Builder()
                 .assetAdministrationShells(new DefaultAssetAdministrationShell.Builder()
                         .id(AAS_ID)
+                        .idShort(AAS_ID_SHORT)
                         .submodels(ReferenceBuilder.forSubmodel(SUBMODEL_ID))
                         .build())
                 .submodels(new DefaultSubmodel.Builder()
@@ -724,10 +728,11 @@ class DeploymentTest {
     }
 
 
-    private EventInfo<ModuleCreatedEvent> moduleCreatedEvent(String moduleId) {
+    private EventInfo<ModuleCreatedEvent> moduleCreatedEvent(String moduleId, String moduleName) {
         return new EventInfo<>(ModuleCreatedEvent.class,
                 x -> checkCommonEventProperties(ModuleCreatedEvent.class, x)
                         && Objects.equals(moduleId, x.getModuleId())
+                        && Objects.equals(moduleName, x.getPayload().getName())
                         && Objects.equals(moduleId, x.getPayload().getModuleId()));
     }
 
@@ -739,10 +744,11 @@ class DeploymentTest {
     }
 
 
-    private EventInfo<ModuleUpdatedEvent> moduleUpdatedEvent(String moduleId) {
+    private EventInfo<ModuleUpdatedEvent> moduleUpdatedEvent(String moduleId, String moduleName) {
         return new EventInfo<>(ModuleUpdatedEvent.class,
                 x -> checkCommonEventProperties(ModuleUpdatedEvent.class, x)
                         && Objects.equals(moduleId, x.getModuleId())
+                        && Objects.equals(moduleName, x.getPayload().getName())
                         && Objects.equals(moduleId, x.getPayload().getModuleId()));
     }
 

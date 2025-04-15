@@ -33,6 +33,7 @@ public class ModuleMapper {
 
     public static Module toEntity(ModuleRequestDto requestDto) throws DeserializationException {
         return Module.builder()
+                .name(requestDto.getName())
                 .providedModel(EnvironmentSerializationManager
                         .deserializerFor(requestDto.getFormat())
                         .read(new ByteArrayInputStream(EncodingHelper.base64Decode(requestDto.getAas()).getBytes())))
@@ -45,6 +46,7 @@ public class ModuleMapper {
     public static ModuleResponseDto toDto(Module module) {
         return ModuleResponseDto.builder()
                 .id(module.getId())
+                .name(module.getName())
                 .endpoint(module.getExternalEndpoint())
                 .services(module.getServices().stream().map(SmartServiceMapper::toDto).toList())
                 .build();

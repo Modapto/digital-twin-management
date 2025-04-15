@@ -49,6 +49,7 @@ public class Constants {
 
     // AAS model
     public static final String AAS_ID = "http://example.org/aas/1";
+    public static final String AAS_ID_SHORT = "ExampleAAS";
     public static final String SUBMODEL_ID = "http://example.org/submodel/1";
     public static final String SUBMODEL_ID_SHORT = "submodel1";
     public static final String PROPERTY_INT_ID_SHORT = "propertyInt";
@@ -81,12 +82,14 @@ public class Constants {
     public static final String EVENT_SERVICE_INVOKED_FILENAME = "service-invoked.json";
     public static final String EVENT_SERVICE_FINISHED_FILENAME = "service-finished.json";
     public static final String EXAMPLE_MODULE_ID = "example-module-id";
+    public static final String EXAMPLE_MODULE_NAME = "example-module-name";
     public static final String EXAMPLE_SERVICE_ID = "example-service-id";
 
     public static final ModuleCreatedEvent EVENT_MODULE_CREATED = ModuleCreatedEvent.builder()
             .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
             .payload(ModuleDetailsPayload.builder()
                     .moduleId(EXAMPLE_MODULE_ID)
+                    .name(EXAMPLE_MODULE_NAME)
                     .endpoint("http://example.org/api/v3.0")
                     .build())
             .build();
@@ -100,6 +103,7 @@ public class Constants {
             .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
             .payload(ModuleDetailsPayload.builder()
                     .moduleId(EXAMPLE_MODULE_ID)
+                    .name(EXAMPLE_MODULE_NAME)
                     .endpoint("http://example.org/api/v3.0")
                     .build())
             .build();
