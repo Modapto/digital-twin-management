@@ -25,9 +25,13 @@ import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class AddressTranslationHelper {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AddressTranslationHelper.class);
     public static final String LOCALHOST = "localhost";
     public static final String HOST_DOCKER_INTERNAL = "host.docker.internal";
     private static final String PROTOCOL_SEPARATOR = "://";
@@ -131,6 +135,12 @@ public class AddressTranslationHelper {
                     ? config.getDockerContainerName()
                     : config.getMqttHostFromContainer();
         }
+        LOGGER.error("unable to resolve module to host address (moduleId: {}, hostType: {}, moduleType: {}, dockerContainerName: {}, mqttHostFromContainer: {})",
+                module.getId(),
+                hostType,
+                moduleType,
+                config.getDockerContainerName(),
+                config.getMqttHostFromContainer());
         throw new IllegalStateException();
     }
 
