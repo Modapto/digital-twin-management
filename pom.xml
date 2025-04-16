@@ -84,6 +84,16 @@
         </dependency>
         <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
+            <artifactId>assetconnection-mqtt</artifactId>
+            <version>${faaast.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
+            <artifactId>assetconnection-opcua</artifactId>
+            <version>${faaast.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
             <artifactId>core</artifactId>
             <version>${faaast.version}</version>
         </dependency>
