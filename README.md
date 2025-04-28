@@ -136,6 +136,15 @@ dt.deployment.docker.tmpDirHostMapping=
 # Docker image to use when starting DTs
 dt.deployment.docker.image=ghcr.io/modapto/digital-twin:latest
 
+# Restart policy for docker containers (module and internal smart services)
+dt.deployment.docker.restartPolicy=unless-stopped
+
+# Prefix for docker container names for MODAPTO modules
+dt.deployment.docker.moduleContainerPrefix=modapto-module-
+
+# Prefix for docker container names for (internal) smart services
+dt.deployment.docker.serviceContainerPrefix=modapto-service-
+
 ### DB MEMORY
 # Configuration for in-memory H2 database
 spring.datasource.url=jdbc:h2:mem:testdb

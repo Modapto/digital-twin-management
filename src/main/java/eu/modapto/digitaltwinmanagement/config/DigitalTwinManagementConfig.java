@@ -91,6 +91,15 @@ public class DigitalTwinManagementConfig {
     @Value("${dt.deployment.docker.tmpDirHostMapping:}")
     private String dtDockerTmpDirHostMapping;
 
+    @Value("${dt.deployment.docker.restartPolicy:unless-stopped}")
+    private String dtRestartPolicy;
+
+    @Value("${dt.deployment.docker.moduleContainerPrefix:modapto-module-}")
+    private String dtModuleContainerPrefix;
+
+    @Value("${dt.deployment.docker.serviceContainerPrefix:modapto-service-}")
+    private String dtServiceContainerPrefix;
+
     @Value("${modapto.service-catalogue.host:}")
     private String serviceCatalogueHost;
 
