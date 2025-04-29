@@ -44,6 +44,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
+import eu.modapto.digitaltwinmanagement.config.SecurityConfig;
 import eu.modapto.digitaltwinmanagement.config.TestConfig;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
@@ -69,6 +70,7 @@ import jakarta.annotation.PostConstruct;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.net.URI;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
@@ -110,8 +112,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -121,7 +125,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestTemplate;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
@@ -181,6 +185,9 @@ class DeploymentTest {
 
     @Autowired
     private DigitalTwinManagementConfig config;
+
+    @Autowired
+    private SecurityConfig securityConfig;
 
     @Autowired
     private ModuleService moduleService;
@@ -684,13 +691,19 @@ class DeploymentTest {
         LOGGER.debug("url: {}/invoke/$value", service.getEndpoint());
         LOGGER.debug("payload: {}", payload);
         String invocationId = "foo-bar";
-        ResponseEntity<String> serviceResponse = RestClient.create(service.getEndpoint())
-                .post()
-                .uri("/invoke/$value")
-                .header(HTTP_HEADER_MODAPTO_INVOCATION_ID, invocationId)
-                .body(payload)
-                .retrieve()
-                .toEntity(String.class);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HTTP_HEADER_MODAPTO_INVOCATION_ID, invocationId);
+        if (securityConfig.isSecureProxyDTs()) {
+            headers.set(HttpHeaders.AUTHORIZATION, getBearerToken());
+        }
+        ResponseEntity<String> serviceResponse = new RestTemplate().exchange(
+                new RequestEntity<>(
+                        payload,
+                        headers,
+                        HttpMethod.POST,
+                        URI.create(service.getEndpoint() + "/invoke/$value")),
+                String.class);
         LOGGER.debug("response from smart service invocation...");
         LOGGER.debug("name: {}", service.getName());
         LOGGER.debug("status: {}", serviceResponse.getStatusCode());

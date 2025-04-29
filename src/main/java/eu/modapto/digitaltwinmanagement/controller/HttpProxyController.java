@@ -14,13 +14,17 @@
  */
 package eu.modapto.digitaltwinmanagement.controller;
 
+import de.fraunhofer.iosb.ilt.faaast.service.util.StreamHelper;
+import eu.modapto.digitaltwinmanagement.config.SecurityConfig;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.repository.LiveModuleRepository;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,12 +47,15 @@ import org.springframework.web.client.RestTemplate;
 @Tag(name = "Digital Twin HTTP Proxy", description = "Acts as a proxy for Digital Twins. Only available if 'dt-management.useProxy' is set to 'true' in configuration.")
 public class HttpProxyController {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpProxyController.class);
+    private static final List<String> NON_FORWARDABLE_HEADERS = List.of(HttpHeaders.AUTHORIZATION);
     private final LiveModuleRepository liveModuleRepository;
+    private final SecurityConfig securityConfig;
     private final RestTemplate restTemplate;
 
     @Autowired
-    public HttpProxyController(LiveModuleRepository liveModuleRepository) {
+    public HttpProxyController(LiveModuleRepository liveModuleRepository, SecurityConfig securityConfig) {
         this.liveModuleRepository = liveModuleRepository;
+        this.securityConfig = securityConfig;
         this.restTemplate = new RestTemplate();
     }
 
@@ -60,7 +67,10 @@ public class HttpProxyController {
             RequestMethod.DELETE,
             RequestMethod.HEAD
     })
-    @Operation(summary = "Forward call to Digital Twin", description = "Forwards call to Digital Twin based on moduleId keeping the URL path after /{moduleId}")
+    @Operation(summary = "Forward call to Digital Twin", description = "Forwards call to Digital Twin based on moduleId keeping the URL path after /{moduleId}. Security is required by default but might be disabled via config property 'dt-management.security.secureProxyDTs=false'.", security = {
+            @SecurityRequirement(name = "none"),
+            @SecurityRequirement(name = "bearerToken")
+    })
     public ResponseEntity<?> proxy(@PathVariable("moduleId") String moduleId, HttpMethod method, HttpServletRequest request) {
         if (!liveModuleRepository.contains(moduleId)) {
             return ResponseEntity.notFound().build();
@@ -103,9 +113,11 @@ public class HttpProxyController {
     }
 
 
-    private static HttpEntity<byte[]> copyBodyAndHeaders(HttpServletRequest request) throws IOException {
+    private HttpEntity<byte[]> copyBodyAndHeaders(HttpServletRequest request) throws IOException {
         HttpHeaders headers = new HttpHeaders();
-        request.getHeaderNames().asIterator().forEachRemaining(headerName -> headers.add(headerName, request.getHeader(headerName)));
+        StreamHelper.toStream(request.getHeaderNames())
+                .filter(x -> !securityConfig.isSecureProxyDTs() || !NON_FORWARDABLE_HEADERS.contains(x))
+                .forEach(x -> headers.add(x, request.getHeader(x)));
         return new HttpEntity<>(request.getInputStream().readAllBytes(), headers);
     }
 }

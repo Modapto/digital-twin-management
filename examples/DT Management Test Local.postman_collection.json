@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "94424833-75ad-47a6-8717-1b29179b279f",
+		"_postman_id": "1eedab3a-a6e1-486a-b069-e63c9cdde072",
 		"name": "DT Management Test Local",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "30244257"
@@ -493,7 +493,7 @@
 	"variable": [
 		{
 			"key": "host",
-			"value": "localhost",
+			"value": "localhost:8094",
 			"type": "string"
 		},
 		{

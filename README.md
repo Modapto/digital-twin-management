@@ -66,6 +66,9 @@ The following configuration parameters can be used (set to default values in the
 spring.security.oauth2.resourceserver.jwt.issuer-uri=
 spring.security.oauth2.resourceserver.jwt.jwk-set-uri=${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
 
+# If true, all calls to DTs via DTM as proxy are secured, if false calls will be available without authentication
+dt-management.security.secureProxyDTs=true
+
 ### MODAPTO
 # The hostname of the Service Catalog component
 modapto.service-catalogue.host=https://services.modapto.atc.gr
