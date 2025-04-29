@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.model.RestartPolicy;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
@@ -95,6 +96,8 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .environmentVariable("faaast_config", CONTAINER_CONFIG_FILE)
                         .environmentVariable("faaast_loglevel_faaast", "TRACE")
                         .environmentVariable("faaast_show_stacktrace", "true")
+                        .restartPolicy(RestartPolicy.parse(config.getDtRestartPolicy()))
+                        .label("modapto-type", "module")
                         .linkedContainers(dtConfig.getModule().getServices().stream()
                                 .filter(InternalSmartService.class::isInstance)
                                 .map(InternalSmartService.class::cast)

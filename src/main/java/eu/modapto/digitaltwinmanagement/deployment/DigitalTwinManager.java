@@ -20,6 +20,7 @@ import static eu.modapto.digitaltwinmanagement.model.ArgumentType.REFERENCE;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.exception.DockerException;
+import com.github.dockerjava.api.model.RestartPolicy;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.HttpAssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.provider.config.HttpOperationProviderConfig;
@@ -316,6 +317,8 @@ public class DigitalTwinManager {
                         .imageName(service.getImage())
                         .containerName(DockerHelper.getContainerName(service))
                         .portMapping(port, service.getInternalPort())
+                        .restartPolicy(RestartPolicy.parse(config.getDtRestartPolicy()))
+                        .label("modapto-type", "service")
                         .build());
         DockerHelper.subscribeToLogs(dockerClient, containerId, "service-" + service.getId());
         service.setContainerId(containerId);

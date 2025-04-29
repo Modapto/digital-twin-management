@@ -28,6 +28,7 @@ import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Link;
 import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.RestartPolicy;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -133,7 +134,7 @@ public class DockerHelper {
         ResultCallback.Adapter<Frame> callback = new ResultCallback.Adapter<>() {
             @Override
             public void onNext(Frame frame) {
-                LOGGER_DOCKER.info("[{}] {}", logPrefix, new String(frame.getPayload()));
+                LOGGER_DOCKER.info("[{}] {}", logPrefix, new String(frame.getPayload()).replaceAll("[\\r\\n]$", ""));
             }
         };
         Thread thread = new Thread(() -> {
@@ -209,6 +210,7 @@ public class DockerHelper {
                         .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
                         .toList())
                 .withExtraHosts("host.docker.internal:host-gateway")
+                .withRestartPolicy(containerInfo.getRestartPolicy())
                 .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
                         .map(x -> new Link(x.getKey(), x.getValue()))
                         .toList());
@@ -223,6 +225,7 @@ public class DockerHelper {
                 .withExposedPorts(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> new ExposedPort(x.getValue()))
                         .toList())
+                .withLabels(Objects.nonNull(containerInfo.getLabels()) ? containerInfo.getLabels() : Map.of())
                 .withHostConfig(hostConfig)
                 .withName(containerInfo.getContainerName())
                 .withEnv(containerInfo.getEnvironmentVariables().entrySet().stream()
@@ -354,12 +357,12 @@ public class DockerHelper {
 
 
     public static String getContainerName(Module module) {
-        return String.format("modapto-module-%s", module.getId());
+        return config.getDtModuleContainerPrefix() + module.getId();
     }
 
 
     public static String getContainerName(RestBasedSmartService service) {
-        return String.format("modapto-service-%s", service.getId());
+        return config.getDtServiceContainerPrefix() + service.getId();
     }
 
 
@@ -440,6 +443,8 @@ public class DockerHelper {
         private String imageName;
         private String containerName;
         @Singular
+        private Map<String, String> labels;
+        @Singular
         private Map<Integer, Integer> portMappings;
         @Singular
         private Map<File, String> fileMappings;
@@ -447,5 +452,7 @@ public class DockerHelper {
         private Map<String, String> environmentVariables;
         @Singular
         private Map<String, String> linkedContainers;
+        @Builder.Default
+        private RestartPolicy restartPolicy = RestartPolicy.noRestart();
     }
 }
