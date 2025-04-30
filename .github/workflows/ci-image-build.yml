@@ -2,6 +2,7 @@ name: Docker Image CI / CD - Digital Twin Management
 
 env:
   DOCKER_IMAGE: digital-twin-management
+  FFT_CONTAINER: digital-twin-management-fft
 
 on:
   push:
@@ -113,7 +114,7 @@ jobs:
 
             # Deploy new Image on FFT Environment
             cd /root/modapto/fft-deployment
-            docker compose up -d --no-deps ${{ env.DOCKER_IMAGE }}-fft
+            docker compose up -d --no-deps ${{ env.FFT_CONTAINER }}
 
             # Remove unused images
             docker image prune -f
