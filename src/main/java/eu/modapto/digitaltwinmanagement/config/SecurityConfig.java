@@ -17,6 +17,7 @@ package eu.modapto.digitaltwinmanagement.config;
 import eu.modapto.digitaltwinmanagement.security.JwtAuthConverter;
 import eu.modapto.digitaltwinmanagement.security.UnauthorizedEntryPoint;
 import java.util.Arrays;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,6 +37,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Getter
 public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
@@ -58,16 +60,22 @@ public class SecurityConfig {
     @Value("${cors.max-age:86400}")
     private long maxAge;
 
+    @Value("${dt-management.security.secureProxyDTs:true}")
+    private boolean secureProxyDTs;
+
     @Bean
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http, UnauthorizedEntryPoint entryPoint) throws Exception {
         http.sessionManagement(x -> x.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .cors(x -> x.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
-                .authorizeHttpRequests(x -> x
-                        .requestMatchers("/api/dtm/**").permitAll() // Permit Swagger and OpenAPI Docs
-                        .requestMatchers("/digital-twins/**").permitAll() // Permit DT Proxying
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(x -> {
+                    x.requestMatchers("/api/dtm/**").permitAll(); // Permit Swagger and OpenAPI Docs
+                    if (!secureProxyDTs) {
+                        x.requestMatchers("/digital-twins/**").permitAll(); // Permit DT Proxying
+                    }
+                    x.anyRequest().authenticated();
+                })
                 .oauth2ResourceServer(x -> x.jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter())));
         return http.build();
     }

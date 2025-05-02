@@ -21,7 +21,8 @@ paths:
       - Digital Twin HTTP Proxy
       summary: Forward call to Digital Twin
       description: "Forwards call to Digital Twin based on moduleId keeping the URL\
-        \ path after /{moduleId}"
+        \ path after /{moduleId}. Security is required by default but might be disabled\
+        \ via config property 'dt-management.security.secureProxyDTs=false'."
       operationId: proxy
       parameters:
       - name: moduleId
@@ -36,12 +37,16 @@ paths:
             application/json:
               schema:
                 type: object
+      security:
+      - none: []
+      - bearerToken: []
     put:
       tags:
       - Digital Twin HTTP Proxy
       summary: Forward call to Digital Twin
       description: "Forwards call to Digital Twin based on moduleId keeping the URL\
-        \ path after /{moduleId}"
+        \ path after /{moduleId}. Security is required by default but might be disabled\
+        \ via config property 'dt-management.security.secureProxyDTs=false'."
       operationId: proxy_3
       parameters:
       - name: moduleId
@@ -56,12 +61,16 @@ paths:
             application/json:
               schema:
                 type: object
+      security:
+      - none: []
+      - bearerToken: []
     post:
       tags:
       - Digital Twin HTTP Proxy
       summary: Forward call to Digital Twin
       description: "Forwards call to Digital Twin based on moduleId keeping the URL\
-        \ path after /{moduleId}"
+        \ path after /{moduleId}. Security is required by default but might be disabled\
+        \ via config property 'dt-management.security.secureProxyDTs=false'."
       operationId: proxy_2
       parameters:
       - name: moduleId
@@ -76,12 +85,16 @@ paths:
             application/json:
               schema:
                 type: object
+      security:
+      - none: []
+      - bearerToken: []
     delete:
       tags:
       - Digital Twin HTTP Proxy
       summary: Forward call to Digital Twin
       description: "Forwards call to Digital Twin based on moduleId keeping the URL\
-        \ path after /{moduleId}"
+        \ path after /{moduleId}. Security is required by default but might be disabled\
+        \ via config property 'dt-management.security.secureProxyDTs=false'."
       operationId: proxy_4
       parameters:
       - name: moduleId
@@ -96,12 +109,16 @@ paths:
             application/json:
               schema:
                 type: object
+      security:
+      - none: []
+      - bearerToken: []
     head:
       tags:
       - Digital Twin HTTP Proxy
       summary: Forward call to Digital Twin
       description: "Forwards call to Digital Twin based on moduleId keeping the URL\
-        \ path after /{moduleId}"
+        \ path after /{moduleId}. Security is required by default but might be disabled\
+        \ via config property 'dt-management.security.secureProxyDTs=false'."
       operationId: proxy_1
       parameters:
       - name: moduleId
@@ -116,6 +133,9 @@ paths:
             application/json:
               schema:
                 type: object
+      security:
+      - none: []
+      - bearerToken: []
   /modules/{moduleId}:
     get:
       tags:
@@ -132,10 +152,10 @@ paths:
       responses:
         "404":
           description: Module not found
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -165,10 +185,10 @@ paths:
       responses:
         "404":
           description: Module not found
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Module updated successfully
           content:
@@ -208,10 +228,10 @@ paths:
       description: Returns a list of all modules
       operationId: getAllModules
       responses:
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -235,6 +255,10 @@ paths:
               $ref: "#/components/schemas/ModuleRequest"
         required: true
       responses:
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "201":
           description: Module created successfully
           headers:
@@ -246,10 +270,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModuleResponse"
-        "401":
-          description: Unauthorized
-        "500":
-          description: Internal server error
       security:
       - bearerToken: []
   /modules/{moduleId}/services:
@@ -268,10 +288,10 @@ paths:
       responses:
         "404":
           description: Module not found
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -304,10 +324,10 @@ paths:
       responses:
         "404":
           description: Module not found
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "201":
           description: Smart Service created successfully
           headers:
@@ -329,10 +349,10 @@ paths:
       description: Returns a list of all smart services
       operationId: getAllSmartServices
       responses:
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -357,12 +377,12 @@ paths:
         schema:
           type: string
       responses:
-        "401":
-          description: Unauthorized
-        "500":
-          description: Internal server error
         "404":
           description: Smart Service not found
+        "500":
+          description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -410,10 +430,10 @@ paths:
       responses:
         "404":
           description: Module not found
-        "401":
-          description: Unauthorized
         "500":
           description: Internal server error
+        "401":
+          description: Unauthorized
         "200":
           description: Success
           content:
@@ -471,12 +491,6 @@ components:
     AssetOperationProviderConfig:
       type: object
       properties:
-        outputValidationMode:
-          type: string
-          enum:
-          - NONE
-          - REQUIRE_PRESENT
-          - REQUIRE_PRESENT_OR_DEFAULT
         inputValidationMode:
           type: string
           enum:
@@ -484,6 +498,12 @@ components:
           - REQUIRE_PRESENT
           - REQUIRE_PRESENT_OR_DEFAULT
         inoutputValidationMode:
+          type: string
+          enum:
+          - NONE
+          - REQUIRE_PRESENT
+          - REQUIRE_PRESENT_OR_DEFAULT
+        outputValidationMode:
           type: string
           enum:
           - NONE
@@ -556,6 +576,10 @@ components:
           type: string
         value:
           type: string
+        refersTo:
+          type: array
+          items:
+            $ref: "#/components/schemas/Reference"
         valueType:
           type: string
           enum:
@@ -589,10 +613,6 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        refersTo:
-          type: array
-          items:
-            $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:
@@ -671,6 +691,8 @@ components:
           - CONCEPT_QUALIFIER
           - TEMPLATE_QUALIFIER
           - VALUE_QUALIFIER
+        valueId:
+          $ref: "#/components/schemas/Reference"
         valueType:
           type: string
           enum:
@@ -704,8 +726,6 @@ components:
           - UNSIGNED_INT
           - UNSIGNED_LONG
           - UNSIGNED_SHORT
-        valueId:
-          $ref: "#/components/schemas/Reference"
         supplementalSemanticIds:
           type: array
           items:

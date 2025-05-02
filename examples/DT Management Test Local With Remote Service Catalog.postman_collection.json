@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "34525bbd-bfa5-4a8c-a78e-3d87b33d1ce0",
+		"_postman_id": "2fe48a9d-88ba-4ad9-aa44-9d20e00f171c",
 		"name": "DT Management Test Local With Remote Service Catalog",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "30244257"
@@ -483,7 +483,7 @@
 	"variable": [
 		{
 			"key": "host",
-			"value": "localhost",
+			"value": "localhost:8094",
 			"type": "string"
 		},
 		{
