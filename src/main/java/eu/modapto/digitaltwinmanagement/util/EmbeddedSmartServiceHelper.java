@@ -132,6 +132,8 @@ public class EmbeddedSmartServiceHelper {
             operation.setIdShort(service.getName());
             operation.setInputVariables(inputVariables);
             operation.setOutputVariables(outputVariables);
+            service.setInputParameters(inputVariables.stream().map(OperationVariable::getValue).toList());
+            service.setOutputParameters(outputVariables.stream().map(OperationVariable::getValue).toList());
         }
         catch (Exception e) {
             LOGGER.debug("Error loading FMU file", e);
