@@ -118,6 +118,9 @@ dt-management.kafka.thread.count=1
 # Hostname used to start the MQTT server on
 dt-management.events.mqtt.host=localhost
 
+# Maximum MQTT message size. Default 256MB (max allowed according to MQTT specification)
+dt-management.events.mqtt.max-message-size:268435456
+
 # Port used to start the MQTT server on
 dt-management.events.mqtt.port=1883
 

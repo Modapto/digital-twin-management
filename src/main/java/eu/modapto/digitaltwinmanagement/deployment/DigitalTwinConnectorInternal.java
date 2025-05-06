@@ -36,6 +36,7 @@ public class DigitalTwinConnectorInternal extends DigitalTwinConnector {
     public DigitalTwinConnectorInternal(DigitalTwinManagementConfig config, DigitalTwinConfig dtConfig) throws Exception {
         super(config, dtConfig);
         service = new Service(ServiceConfig.builder()
+                .core(getCoreConfig())
                 .endpoint(getHttpEndpointConfig(dtConfig.getHttpPort()))
                 .messageBus(getMessageBusMqttConfig())
                 .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())

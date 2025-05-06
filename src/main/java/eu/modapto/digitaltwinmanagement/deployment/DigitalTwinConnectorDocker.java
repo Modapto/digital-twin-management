@@ -176,6 +176,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     private void writeConfigFile() {
         ServiceConfig serviceConfig = ServiceConfig.builder()
+                .core(getCoreConfig())
                 .endpoint(getHttpEndpointConfig(CONTAINER_HTTP_PORT_INTERNAL))
                 .messageBus(getMessageBusMqttConfig())
                 .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())

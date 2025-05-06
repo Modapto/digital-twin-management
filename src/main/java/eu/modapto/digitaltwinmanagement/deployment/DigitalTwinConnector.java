@@ -14,8 +14,10 @@
  */
 package eu.modapto.digitaltwinmanagement.deployment;
 
+import de.fraunhofer.iosb.ilt.faaast.service.config.CoreConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidatorConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import eu.modapto.dt.faaast.service.smt.simulation.SimulationSubmodelTemplateProcessorConfig;
@@ -29,6 +31,13 @@ public abstract class DigitalTwinConnector {
     protected DigitalTwinConnector(DigitalTwinManagementConfig config, DigitalTwinConfig dtConfig) {
         this.config = config;
         this.dtConfig = dtConfig;
+    }
+
+
+    protected CoreConfig getCoreConfig() {
+        return CoreConfig.builder()
+                .validationOnLoad(ModelValidatorConfig.NONE)
+                .build();
     }
 
 
