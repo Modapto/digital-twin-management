@@ -14,6 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.JsonMapperFactory;
@@ -28,8 +29,14 @@ public class ObjectMapperConfig {
     @Bean
     @Primary
     public ObjectMapper objectMapper() {
-        return new JsonMapperFactory()
+        ObjectMapper result = new JsonMapperFactory()
                 .create(new SimpleAbstractTypeResolverFactory().create())
                 .registerModule(new JavaTimeModule());
+        StreamReadConstraints streamReadConstraints = StreamReadConstraints
+                .builder()
+                .maxStringLength(Integer.MAX_VALUE)
+                .build();
+        result.getFactory().setStreamReadConstraints(streamReadConstraints);
+        return result;
     }
 }
