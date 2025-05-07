@@ -24,6 +24,7 @@ import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.model.response.ModuleResponseDto;
 import java.io.ByteArrayInputStream;
+import java.util.Base64;
 
 
 public class ModuleMapper {
@@ -36,7 +37,7 @@ public class ModuleMapper {
                 .name(requestDto.getName())
                 .providedModel(EnvironmentSerializationManager
                         .deserializerFor(requestDto.getFormat())
-                        .read(new ByteArrayInputStream(EncodingHelper.base64Decode(requestDto.getAas()).getBytes())))
+                        .read(new ByteArrayInputStream(Base64.getDecoder().decode(requestDto.getAas()))))
                 .type(requestDto.getType())
                 .assetConnections(requestDto.getAssetConnections())
                 .build();

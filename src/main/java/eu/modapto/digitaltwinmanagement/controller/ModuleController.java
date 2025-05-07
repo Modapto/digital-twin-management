@@ -20,7 +20,6 @@ import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.exception.ValidationException;
 import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidator;
 import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidatorConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.exception.InvalidModelException;
 import eu.modapto.digitaltwinmanagement.mapper.ModuleMapper;
@@ -38,6 +37,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
@@ -171,7 +171,7 @@ public class ModuleController {
         try {
             environmentContext = EnvironmentSerializationManager
                     .deserializerFor(moduleRequestDto.getFormat())
-                    .read(new ByteArrayInputStream(EncodingHelper.base64Decode(moduleRequestDto.getAas()).getBytes()));
+                    .read(new ByteArrayInputStream(Base64.getDecoder().decode(moduleRequestDto.getAas())));
         }
         catch (Exception e) {
             throw new InvalidModelException(String.format("Invalid AAS model - could not be deserialized (reason: %s)", e.getMessage()), e);

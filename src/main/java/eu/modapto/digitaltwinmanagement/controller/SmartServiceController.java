@@ -80,7 +80,7 @@ public class SmartServiceController {
     }
 
 
-    @Operation(summary = "Create a new smart service", description = "Creates a new smart service withing a service based on the provided details", security = @SecurityRequirement(name = "bearerToken"))
+    @Operation(summary = "Create a new smart service", description = "Creates a new smart service within a module based on the provided details", security = @SecurityRequirement(name = "bearerToken"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Smart Service created successfully", headers = {
                     @Header(name = HttpHeaders.LOCATION, description = "URI of the created Smart Service", required = true)

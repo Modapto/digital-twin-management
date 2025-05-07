@@ -36,6 +36,7 @@ import com.github.dockerjava.api.model.Container;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
+import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.util.EncodingHelper;
@@ -372,6 +373,30 @@ class DeploymentTest {
 
 
     @Test
+    void testCreateModuleFromAASX() throws Exception {
+        String moduleName = "MyNewModuleAASX";
+        ModuleRequestDto payload = ModuleRequestDto.builder()
+                .name(moduleName)
+                .aas(asAasxBase64(newDefaultEnvironment()))
+                .type(testConfig.getDtDeplyomentType())
+                .format(DataFormat.AASX)
+                .build();
+
+        MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(payload)))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        assertKafkaEvent(moduleCreatedEvent(moduleId, moduleName));
+    }
+
+
+    @Test
     void testCreateModule() throws Exception {
         String moduleName = "MyNewModule";
         ModuleRequestDto payload = ModuleRequestDto.builder()
@@ -677,6 +702,11 @@ class DeploymentTest {
 
     private static String asJsonBase64(Environment environment) throws Exception {
         return EncodingHelper.base64Encode(new JsonSerializer().write(environment));
+    }
+
+
+    private static String asAasxBase64(Environment environment) throws Exception {
+        return new String(EncodingHelper.base64Encode(EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(environment)));
     }
 
 
