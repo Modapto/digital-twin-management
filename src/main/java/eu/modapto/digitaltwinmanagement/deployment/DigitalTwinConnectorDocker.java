@@ -212,17 +212,26 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private void writeAuxiliaryFiles() {
         try {
             Files.createDirectory(fileStoragePath);
-            for (var file: dtConfig.getEnvironmentContext().getFiles()) {
-                Files.write(
-                        fileStoragePath.resolve(file.getPath().startsWith("/")
-                                ? file.getPath().substring(1)
-                                : file.getPath()),
-                        file.getFileContent());
-            }
         }
         catch (IOException e) {
-            throw new DigitalTwinException("failed to write auxiliary files", e);
+            throw new DigitalTwinException(String.format(
+                    "failed to create auxiliary file directory (%s)", fileStoragePath),
+                    e);
         }
+        for (var file: dtConfig.getEnvironmentContext().getFiles()) {
+            try {
+                Path path = fileStoragePath.resolve(file.getPath().startsWith("/")
+                        ? file.getPath().substring(1)
+                        : file.getPath());
+
+                Files.createDirectories(path.getParent());
+                Files.write(path, file.getFileContent());
+            }
+            catch (IOException | InvalidPathException e) {
+                LOGGER.error("failed to write auxiliary file '{}'", file.getPath(), e);
+            }
+        }
+
     }
 
 
