@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Digital Twin Management API
   description: API documentation for Digital Twin Management
-  version: 0.5
+  version: 0.6.0
 servers:
 - url: http://localhost:8080
   description: Generated server url
