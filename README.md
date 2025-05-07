@@ -187,3 +187,10 @@ spring.jpa.properties.eclipselink.schema=dt-management
 # Specifies the logging pattern for console logging
 logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5(%level) %-26.26(%.-25([%logger{0})]) : %msg%n
 ```
+
+## Changelog
+
+<!--changelog-anchor-->
+## 0.5
+
+Initial release
