@@ -115,11 +115,11 @@ public class EmbeddedSmartServiceHelper {
         try {
             Fmu fmu = FmuHelper.loadFmu(service.getName(), service.getFmu());
 
-            List<OperationVariable> inputVariables = List.of(
+            List<OperationVariable> inputVariables = new ArrayList<>(List.of(
                     ARG_CURRENT_TIME,
                     ARG_TIME_STEP,
                     ARG_STEP_COUNT,
-                    newMultiStepArg(FmuHelper.getInputArgumentsMetadata(fmu)));
+                    newMultiStepArg(FmuHelper.getInputArgumentsMetadata(fmu))));
             if (Objects.nonNull(service.getInputParameters()) && !service.getInputParameters().isEmpty()) {
                 inputVariables.removeIf(x -> service.getInputParameters().stream()
                         .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
