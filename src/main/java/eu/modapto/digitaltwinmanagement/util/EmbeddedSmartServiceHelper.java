@@ -124,11 +124,7 @@ public class EmbeddedSmartServiceHelper {
                 inputVariables.removeIf(x -> service.getInputParameters().stream()
                         .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
             }
-            List<OperationVariable> outputVariables = new ArrayList<>(List.of(newMultiStepResult(FmuHelper.getOutputArgumentsMetadata(fmu))));
-            if (Objects.nonNull(service.getOutputParameters()) && !service.getOutputParameters().isEmpty()) {
-                outputVariables.removeIf(x -> service.getOutputParameters().stream()
-                        .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
-            }
+            List<OperationVariable> outputVariables = new ArrayList<>(List.of(getMultiStepResult(fmu, service)));
             operation.setIdShort(service.getName());
             operation.setInputVariables(inputVariables);
             operation.setOutputVariables(outputVariables);
@@ -195,7 +191,21 @@ public class EmbeddedSmartServiceHelper {
     }
 
 
-    private static OperationVariable newMultiStepResult(List<OperationVariable> originalArgs) {
+    private static OperationVariable getMultiStepResult(Fmu fmu, EmbeddedSmartService service) {
+        List<SubmodelElement> fmuOutputs = FmuHelper.getOutputArgumentsMetadata(fmu).stream().map(OperationVariable::getValue).toList();
+        List<SubmodelElement> userOutputs = Optional.ofNullable(service.getOutputParameters()).orElse(List.of());
+        List<SubmodelElement> actualOutputs = new ArrayList<>();
+        for (var element: userOutputs) {
+            if (fmuOutputs.stream().anyMatch(x -> Objects.equals(x.getIdShort(), element.getIdShort()))) {
+                actualOutputs.add(element);
+            }
+            else {
+                LOGGER.warn("user provided output argument for embedded service is not defined in the FMU and therefore will be ignored (parameter: {})", element.getIdShort());
+            }
+        }
+        if (actualOutputs.isEmpty()) {
+            actualOutputs = fmuOutputs;
+        }
         return new DefaultOperationVariable.Builder()
                 .value(new DefaultSubmodelElementList.Builder()
                         .idShort(ARG_RESULT_PER_STEP_ID)
@@ -208,7 +218,7 @@ public class EmbeddedSmartServiceHelper {
                                                         .idShort(ARG_STEP_NUMBER_ID)
                                                         .valueType(DataTypeDefXsd.INTEGER)
                                                         .build()),
-                                                originalArgs.stream().map(OperationVariable::getValue))
+                                                actualOutputs.stream())
                                                 .toList())
                                 .build())
                         .build())
