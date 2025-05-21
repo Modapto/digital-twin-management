@@ -42,7 +42,7 @@ public class SmartServiceRequestDto {
     private String serviceCatalogId;
 
     @Size(min = 1, max = 128)
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = NAME_REGEX)
+    @Schema(pattern = NAME_REGEX)
     @Pattern(regexp = NAME_REGEX)
     private String name;
 

@@ -193,6 +193,10 @@ logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5(%level) %-26.26(%.-25([%logg
 <!--changelog-anchor-->
 <!--start:changelog-header-->
 ## 0.6.0-SNAPSHOT (current development version)<!--end:changelog-header-->
+
+### Internal changes & bugfixes
+- make property `name` optional when assigning a smart service
+
 ## 0.5
 
 Initial release

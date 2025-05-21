@@ -173,7 +173,7 @@ public class SmartServiceService {
 
 
     private static void applyRequestOverrides(SmartService service, SmartServiceRequestDto request) {
-        if (Objects.nonNull(request.getDescription())) {
+        if (Objects.nonNull(request.getName())) {
             service.setName(request.getName());
         }
         else {
