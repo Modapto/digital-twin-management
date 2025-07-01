@@ -18,8 +18,9 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.BuildImageCmd;
 import com.github.dockerjava.api.command.BuildImageResultCallback;
+import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.PullImageCmd;
-import com.github.dockerjava.api.model.AccessMode;
 import com.github.dockerjava.api.model.Bind;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ContainerNetwork;
@@ -34,6 +35,7 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
 import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.command.PushImageResultCallback;
+import com.github.dockerjava.core.util.CompressArchiveUtil;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
@@ -41,6 +43,8 @@ import eu.modapto.digitaltwinmanagement.exception.DockerException;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.RestBasedSmartService;
 import java.io.File;
+import java.io.FileInputStream;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +66,7 @@ public class DockerHelper {
     private static final Logger LOGGER_DOCKER = LoggerFactory.getLogger("Docker");
     private static final String DEFAULT_TAG = "latest";
     private static final Map<String, ResultCallback.Adapter<Frame>> loggingCallbacks = new ConcurrentHashMap<>();
+    private static final String TEMP_CONTAINER_IMAGE = "busybox:1.37.0";
     private static DigitalTwinManagementConfig config;
 
     private DockerHelper() {}
@@ -199,13 +204,99 @@ public class DockerHelper {
     }
 
 
+    private static boolean volumeExists(DockerClient client, String volumeName) {
+        return client.listVolumesCmd().exec().getVolumes().stream().anyMatch(x -> Objects.equals(x.getName(), volumeName));
+    }
+
+
+    private static void createVolume(DockerClient client, String volumeName) {
+        if (volumeExists(client, volumeName)) {
+            LOGGER.debug("volume {} already exists - deleting volume...", volumeName);
+            client.removeVolumeCmd(volumeName);
+            LOGGER.debug("volume {} deleted", volumeName);
+        }
+        client.createVolumeCmd()
+                .withName(volumeName)
+                .withDriver("local")
+                .exec();
+        LOGGER.debug("volume {} created", volumeName);
+    }
+
+
+    public static void deleteVolume(DockerClient client, String volumeName) {
+        if (!volumeExists(client, volumeName)) {
+            LOGGER.debug("not able to delete volume - volume {} does not exist", volumeName);
+            return;
+        }
+        List<Container> containers = client.listContainersCmd()
+                .withShowAll(true) // Include stopped containers
+                .exec();
+
+        boolean isVolumeInUse = false;
+        for (Container container: containers) {
+            InspectContainerResponse containerDetails = client.inspectContainerCmd(container.getId()).exec();
+            Volume[] containerVolumes = containerDetails.getMounts().stream()
+                    .map(mount -> new Volume(mount.getDestination().getPath()))
+                    .toArray(Volume[]::new);
+
+            for (Volume volume: containerVolumes) {
+                if (volume.getPath().equals(volumeName)) {
+                    isVolumeInUse = true;
+                    System.out.println("Volume is in use by container: " + container.getId());
+                    break;
+                }
+            }
+            if (isVolumeInUse) {
+                break;
+            }
+        }
+        if (isVolumeInUse) {
+            LOGGER.error("Could not safely delete volume as it is being used (volume: {})", volumeName);
+            return;
+        }
+        client.removeVolumeCmd(volumeName).exec();
+        LOGGER.debug("volume {} deleted", volumeName);
+    }
+
+
+    private static void populateVolumeWithData(DockerClient client, ContainerInfo containerInfo) {
+        if (StringHelper.isBlank(containerInfo.getMountPathSrc())) {
+            return;
+        }
+        ensureImagePresent(client, TEMP_CONTAINER_IMAGE);
+        CreateContainerResponse tempContainer = client.createContainerCmd(TEMP_CONTAINER_IMAGE)
+                .withCmd("sh", "-c", "while true; do sleep 1; done") // Keep container running
+                .withHostConfig(HostConfig.newHostConfig().withBinds(
+                        new Bind(containerInfo.getVolumeName(), new Volume(containerInfo.getMountPathDst()))))
+                .exec();
+        client.startContainerCmd(tempContainer.getId()).exec();
+        try {
+            File tempFile = File.createTempFile(containerInfo.getVolumeName(), ".tar");
+            CompressArchiveUtil.tar(Paths.get(containerInfo.getMountPathSrc()), tempFile.toPath(), true, true);
+            client.copyArchiveToContainerCmd(tempContainer.getId())
+                    .withTarInputStream(new FileInputStream(tempFile))
+                    .withRemotePath(containerInfo.getMountPathDst())
+                    .withDirChildrenOnly(true)
+                    .exec();
+        }
+        catch (Exception e) {
+            LOGGER.error("error populating volume with data (volume: {})", containerInfo.getVolumeName(), e);
+        }
+        finally {
+            new Thread(() -> {
+                DockerClient newClient = newClient();
+                newClient.stopContainerCmd(tempContainer.getId()).exec();
+                newClient.removeContainerCmd(tempContainer.getId()).exec();
+            }).start();
+        }
+    }
+
+
     public static String createContainer(DockerClient client, ContainerInfo containerInfo) {
         ensureImagePresent(client, containerInfo.getImageName());
         stopAndDeleteContainerByName(client, containerInfo.getContainerName());
+
         HostConfig hostConfig = new HostConfig()
-                .withBinds(containerInfo.getFileMappings().entrySet().stream()
-                        .map(x -> new Bind(x.getKey().toString(), new Volume(x.getValue()), AccessMode.ro))
-                        .toList())
                 .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
                         .toList())
@@ -214,6 +305,16 @@ public class DockerHelper {
                 .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
                         .map(x -> new Link(x.getKey(), x.getValue()))
                         .toList());
+        if (!StringHelper.isBlank(containerInfo.getMountPathSrc())) {
+            createVolume(client, containerInfo.getVolumeName());
+            try {
+                populateVolumeWithData(client, containerInfo);
+                hostConfig.withBinds(new Bind(containerInfo.getVolumeName(), new Volume(containerInfo.getMountPathDst())));
+            }
+            catch (Exception e) {
+                deleteVolume(client, containerInfo.getVolumeName());
+            }
+        }
         if (!StringHelper.isBlank(config.getDockerNetwork())) {
             String actualNetwork = getActualNetwork(client);
             if (!StringHelper.isBlank(actualNetwork)) {
@@ -300,6 +401,18 @@ public class DockerHelper {
         String containerId = createContainer(client, containerInfo);
         client.startContainerCmd(containerId).exec();
         return containerId;
+    }
+
+
+    public static void startContainer(DockerClient client, String containerId) {
+        if (!containerExists(client, containerId)) {
+            throw new IllegalArgumentException(String.format("error starting docker container - container does not exist (containerId: %s)", containerId));
+        }
+        if (isContainerRunning(client, containerId)) {
+            LOGGER.debug("did not start docker container because it is already running (containerId: {})", containerId);
+            return;
+        }
+        client.startContainerCmd(containerId).exec();
     }
 
 
@@ -442,17 +555,21 @@ public class DockerHelper {
     public static class ContainerInfo {
         private String imageName;
         private String containerName;
+        private String mountPathSrc;
+        private String mountPathDst;
         @Singular
         private Map<String, String> labels;
         @Singular
         private Map<Integer, Integer> portMappings;
-        @Singular
-        private Map<File, String> fileMappings;
         @Singular
         private Map<String, String> environmentVariables;
         @Singular
         private Map<String, String> linkedContainers;
         @Builder.Default
         private RestartPolicy restartPolicy = RestartPolicy.noRestart();
+
+        public String getVolumeName() {
+            return "vol-" + containerName;
+        }
     }
 }

@@ -48,9 +48,10 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private static final Logger LOGGER = LoggerFactory.getLogger(DigitalTwinConnectorDocker.class);
 
     public static final int CONTAINER_HTTP_PORT_INTERNAL = 8080;
-    private static final String CONTAINER_MODEL_FILE = "/app/model.json";
-    private static final String CONTAINER_CONFIG_FILE = "/app/config.json";
-    private static final String CONTAINER_FILE_STORGE_PATH = "/app/file-storage";
+    private static final String CONTAINER_MOUNT_PATH = "/app/mount";
+    private static final String CONTAINER_MODEL_FILE = "/app/mount/model.json";
+    private static final String CONTAINER_CONFIG_FILE = "/app/mount/config.json";
+    private static final String CONTAINER_FILE_STORGE_PATH = "/app/mount/file-storage";
 
     private static final Path TMP_DIR = Paths.get(System.getProperty("java.io.tmpdir") + "/dt-context");
 
@@ -89,9 +90,8 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         .imageName(config.getDtDockerImage())
                         .containerName(DockerHelper.getContainerName(dtConfig.getModule()))
                         .portMapping(dtConfig.getHttpPort(), CONTAINER_HTTP_PORT_INTERNAL)
-                        .fileMapping(mapToHost(modelFile), CONTAINER_MODEL_FILE)
-                        .fileMapping(mapToHost(configFile), CONTAINER_CONFIG_FILE)
-                        .fileMapping(mapToHost(fileStoragePath.toFile()), CONTAINER_FILE_STORGE_PATH)
+                        .mountPathSrc(contextPath.toAbsolutePath().toString())
+                        .mountPathDst(CONTAINER_MOUNT_PATH)
                         .environmentVariable("faaast_model", CONTAINER_MODEL_FILE)
                         .environmentVariable("faaast_config", CONTAINER_CONFIG_FILE)
                         .environmentVariable("faaast_loglevel_faaast", "TRACE")
@@ -120,6 +120,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             DockerHelper.unsubscribeFromLogs(dtConfig.getModule().getContainerId());
             DockerHelper.stopContainer(dockerClient, dtConfig.getModule().getContainerId());
             DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
+            DockerHelper.deleteVolume(dockerClient, "vol-" + dtConfig.getModule().getContainerId());
         }
         cleanUpTempDirectoryAndFiles();
         running = false;
@@ -257,10 +258,14 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     public void recreate() {
         initContainer();
         if (!DockerHelper.containerExists(dockerClient, dtConfig.getModule().getContainerId())) {
-            LOGGER.info("Re-creating Digital Twin... (type: DOCKER, moduleId: {}, reason: container not running)", dtConfig.getModule().getId());
+            LOGGER.info("Re-creating Digital Twin... (type: DOCKER, moduleId: {}, reason: container does not exist)", dtConfig.getModule().getId());
             start();
         }
         else if (!DockerHelper.isContainerRunning(dockerClient, dtConfig.getModule().getContainerId())) {
+            LOGGER.info("Re-creating docker container for Digital Twin... (type: DOCKER, moduleId: {}, containerId: {}, reason: container not running)",
+                    dtConfig.getModule().getId(),
+                    dtConfig.getModule().getContainerId());
+            DockerHelper.startContainer(dockerClient, dtConfig.getModule().getContainerId());
             LOGGER.info("Re-attachting to Digital Twin... (type: DOCKER, moduleId: {}, containerId: {})", dtConfig.getModule().getId(), dtConfig.getModule().getContainerId());
         }
     }
