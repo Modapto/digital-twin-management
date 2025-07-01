@@ -242,7 +242,7 @@ public class DockerHelper {
             for (Volume volume: containerVolumes) {
                 if (volume.getPath().equals(volumeName)) {
                     isVolumeInUse = true;
-                    System.out.println("Volume is in use by container: " + container.getId());
+                    LOGGER.debug("Volume is in use by container (volume: {}, containerId: {})", volumeName, container.getId());
                     break;
                 }
             }

@@ -26,7 +26,6 @@ import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
 import de.fraunhofer.iosb.ilt.faaast.service.filestorage.filesystem.FileStorageFilesystemConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.exception.DigitalTwinException;
 import eu.modapto.digitaltwinmanagement.model.InternalSmartService;
@@ -233,24 +232,6 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             }
         }
 
-    }
-
-
-    private File mapToHost(File file) {
-        if (StringHelper.isBlank(config.getDtDockerTmpDirHostMapping())) {
-            return file;
-        }
-        try {
-            Path hostDir = Path.of(config.getDtDockerTmpDirHostMapping());
-            File result = new File(file.getAbsolutePath().replace(TMP_DIR.toString(), hostDir.toString()));
-            LOGGER.debug("mapped path for docker (original: {}, mapped: {}, original (absolute): {}, mapped (absolute): {})",
-                    file, result, file.getAbsolutePath(), result.getAbsolutePath());
-            return result;
-        }
-        catch (InvalidPathException e) {
-            LOGGER.warn("found invalid tmpDirHostMapping - will be ignored (tmpDirHostMapping: {}, error: {})", config.getDtDockerTmpDirHostMapping(), e);
-            return file;
-        }
     }
 
 

@@ -356,7 +356,15 @@ class DeploymentTest {
                 });
         dockerClient.listVolumesCmd().exec().getVolumes().stream()
                 .filter(x -> x.getName().startsWith("vol-"))
-                .forEach(x -> DockerHelper.deleteVolume(dockerClient, x.getName()));
+                .forEach(x -> {
+                    try {
+                        DockerHelper.deleteVolume(dockerClient, x.getName());
+                        LOGGER.debug("cleaned up volume {}", x.getName());
+                    }
+                    catch (DockerException e) {
+                        LOGGER.debug("exception cleaning up volume {}", x.getName(), e);
+                    }
+                });
     }
 
 
