@@ -88,9 +88,6 @@ public class DigitalTwinManagementConfig {
     @Value("${dt.deployment.docker.image:ghcr.io/modapto/digital-twin:latest}")
     private String dtDockerImage;
 
-    @Value("${dt.deployment.docker.tmpDirHostMapping:}")
-    private String dtDockerTmpDirHostMapping;
-
     @Value("${dt.deployment.docker.restartPolicy:unless-stopped}")
     private String dtRestartPolicy;
 

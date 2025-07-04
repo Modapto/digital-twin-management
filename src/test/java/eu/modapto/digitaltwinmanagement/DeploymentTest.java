@@ -354,6 +354,17 @@ class DeploymentTest {
                         LOGGER.debug("exception cleaning up internal smart service container {}", x.getContainerId(), e);
                     }
                 });
+        dockerClient.listVolumesCmd().exec().getVolumes().stream()
+                .filter(x -> x.getName().startsWith("vol-"))
+                .forEach(x -> {
+                    try {
+                        DockerHelper.removeVolume(dockerClient, x.getName());
+                        LOGGER.debug("cleaned up volume {}", x.getName());
+                    }
+                    catch (DockerException e) {
+                        LOGGER.debug("exception cleaning up volume {}", x.getName(), e);
+                    }
+                });
     }
 
 

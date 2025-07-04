@@ -135,10 +135,6 @@ dt-management.events.mqtt.queue.size=100
 dt-management.events.mqtt.thread.count=1
 
 ### DT
-# When DTs are deployed via docker, this requires to create some temp files that are then mapped into the container. When DT Management is running in docker itself and using the host docker daemon, this might create some issues with access to temp directories.
-# In this case, you need to manually mount a volume to '/tmp/dt-context' to the DTM container (with write access) and you also need to provide the directory mounted in this config property.
-dt.deployment.docker.tmpDirHostMapping=
-
 # Docker image to use when starting DTs
 dt.deployment.docker.image=ghcr.io/modapto/digital-twin:latest
 

@@ -14,6 +14,7 @@
     <name>MODAPTO Digital Twin Management</name>
     <description>Manages MODAPTO Modules and Smart Servicies</description>
     <properties>
+        <aas4j.version>1.0.5-SNAPSHOT</aas4j.version>
         <docker-java.version>3.4.0</docker-java.version>
         <faaast.version>1.2.0</faaast.version>
         <fmi4j.version>0.38.0</fmi4j.version>
@@ -199,6 +200,26 @@
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
             <version>${jaxb-api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.digitaltwin.aas4j</groupId>
+            <artifactId>aas4j-dataformat-aasx</artifactId>
+            <version>${aas4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.digitaltwin.aas4j</groupId>
+            <artifactId>aas4j-dataformat-core</artifactId>
+            <version>${aas4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.digitaltwin.aas4j</groupId>
+            <artifactId>aas4j-dataformat-json</artifactId>
+            <version>${aas4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.digitaltwin.aas4j</groupId>
+            <artifactId>aas4j-dataformat-xml</artifactId>
+            <version>${aas4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.paho</groupId>
