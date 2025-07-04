@@ -65,4 +65,4 @@ jobs:
         echo '{ "insecure-registries":["localhost:5000", "172.17.0.1:5000"] }' | sudo tee /etc/docker/daemon.json
         sudo systemctl restart docker
         docker info
-        mvn test -Dspring.config.location=classpath:/application-test-ci.properties
+        mvn spotless:apply test -Dspring.config.location=classpath:/application-test-ci.properties
