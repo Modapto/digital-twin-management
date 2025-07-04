@@ -19,6 +19,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConf
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
+import eu.modapto.digitaltwinmanagement.jpa.AssetConnectionConfigListConverter;
 import eu.modapto.digitaltwinmanagement.jpa.EnvironmentContextConverter;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import jakarta.persistence.CascadeType;
@@ -70,7 +71,8 @@ public class Module {
     @Lob
     private EnvironmentContext actualModel;
 
-    @Transient
+    @Convert(converter = AssetConnectionConfigListConverter.class)
+    @Lob
     @Builder.Default
     private List<AssetConnectionConfig> assetConnections = new ArrayList<>();
 

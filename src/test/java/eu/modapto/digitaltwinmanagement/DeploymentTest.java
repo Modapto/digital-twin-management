@@ -358,7 +358,7 @@ class DeploymentTest {
                 .filter(x -> x.getName().startsWith("vol-"))
                 .forEach(x -> {
                     try {
-                        DockerHelper.deleteVolume(dockerClient, x.getName());
+                        DockerHelper.removeVolume(dockerClient, x.getName());
                         LOGGER.debug("cleaned up volume {}", x.getName());
                     }
                     catch (DockerException e) {

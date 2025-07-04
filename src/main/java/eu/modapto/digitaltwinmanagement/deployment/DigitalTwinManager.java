@@ -124,6 +124,7 @@ public class DigitalTwinManager {
             try {
                 DigitalTwinConnector connector = connectorFactory.create(x);
                 connector.recreate();
+                liveModuleRepository.update(x);
                 instances.put(x.getId(), connector);
             }
             catch (Exception e) {
@@ -142,6 +143,7 @@ public class DigitalTwinManager {
 
 
     private void deploy(Module module, int port) throws Exception {
+        LOGGER.debug("deploying module... (moduleId: {}, port: {})", module.getId(), port);
         module.setExternalPort(port);
         createActualModel(module);
         DigitalTwinConnector dt = connectorFactory.create(module);
@@ -149,10 +151,12 @@ public class DigitalTwinManager {
         instances.put(module.getId(), dt);
         liveModuleRepository.subscribe(module);
         waitUntilModuleIsRunning(module);
+        LOGGER.debug("module deployed (moduleId: {})", module.getId());
     }
 
 
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
+        LOGGER.debug("creating actual model via copy...");
         EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         for (var service: module.getServices()) {
             Submodel submodel = getOrCreateModaptoSubmodel(actualModel);
@@ -401,6 +405,7 @@ public class DigitalTwinManager {
 
 
     public void update(Module module) throws Exception {
+        LOGGER.debug("updating module... (moduleId: {}, containerId: {})", module.getId(), module.getContainerId());
         if (!instances.containsKey(module.getId())) {
             throw new DigitalTwinException(String.format("DT for module does not exist (module id: %s)", module.getId()));
         }

@@ -90,6 +90,7 @@ public class SmartServiceService {
     public SmartService addServiceToModule(String moduleId, SmartServiceRequestDto request) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
+        LOGGER.debug("adding service to module (moduleId: {}, serviceCatalogId: {})", moduleId, request.getServiceCatalogId());
         SmartService service = getServiceDetails(request.getServiceCatalogId());
         applyRequestOverrides(service, request);
         ensureValidServicename(service);
@@ -98,6 +99,7 @@ public class SmartServiceService {
         module.getServices().add(service);
         dtManager.update(module);
         moduleRepository.save(module);
+        smartServiceRepository.save(service);
         return module.getServiceById(service.getId());
     }
 
