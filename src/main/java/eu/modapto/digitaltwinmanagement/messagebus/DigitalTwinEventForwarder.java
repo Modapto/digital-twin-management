@@ -44,6 +44,7 @@ import io.moquette.interception.messages.InterceptSubscribeMessage;
 import io.moquette.interception.messages.InterceptUnsubscribeMessage;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
@@ -104,7 +105,13 @@ public class DigitalTwinEventForwarder {
         serverConfig.setProperty(BrokerConstants.ALLOW_ANONYMOUS_PROPERTY_NAME, "true");
         serverConfig.setProperty(BrokerConstants.NETTY_MAX_BYTES_PROPERTY_NAME, Long.toString(config.getMqttMaxMessageSize()));
         LOGGER.debug("starting MQTT broker (port: {})", config.getMqttPort());
-        mqttServer.startServer(serverConfig, List.of(new MqttInterceptHandler()), null, null, null);
+        try {
+            mqttServer.startServer(serverConfig, List.of(new MqttInterceptHandler()), null, null, null);
+        }
+        catch (IOException e) {
+            LOGGER.error("Error starting DT event forwarder MQTT server", e);
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -268,6 +275,12 @@ public class DigitalTwinEventForwarder {
         @Override
         public String getID() {
             return "modapto-dt-management-mqtt-interceptor";
+        }
+
+
+        @Override
+        public void onSessionLoopError(Throwable thrwbl) {
+            // ignore
         }
     }
 }

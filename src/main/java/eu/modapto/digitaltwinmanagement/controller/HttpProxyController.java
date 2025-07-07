@@ -90,10 +90,11 @@ public class HttpProxyController {
             catch (Exception e) {
                 LOGGER.debug("failed to log response", e);
             }
+
             return ResponseEntity
                     .status(actualRespose.getStatusCode())
                     .contentType(actualRespose.getHeaders().getContentType())
-                    .contentLength(actualRespose.getHeaders().getContentLength())
+                    .contentLength(actualRespose.getHeaders().getContentLength() > 0 ? actualRespose.getHeaders().getContentLength() : actualRespose.getBody().length)
                     .location(actualRespose.getHeaders().getLocation())
                     .body(actualRespose.getBody());
         }
