@@ -79,7 +79,7 @@ public class HttpProxyController {
         String remainingPath = request.getRequestURI().substring(request.getRequestURI().indexOf(moduleId) + moduleId.length());
         String url = AddressTranslationHelper.getHostToModuleAddress(module, module.getExternalPort()).asUrl() + remainingPath;
         try {
-            LOGGER.trace("executing proxy call to DT (url: {})", url);
+            LOGGER.debug("executing proxy call to DT (url: {})", url);
             ResponseEntity<byte[]> actualRespose = restTemplate.exchange(url, method, copyBodyAndHeaders(request), byte[].class);
             try {
                 LOGGER.debug("received response from DT (url: {}, status code: {}, payload: {})",
@@ -90,10 +90,11 @@ public class HttpProxyController {
             catch (Exception e) {
                 LOGGER.debug("failed to log response", e);
             }
+
             return ResponseEntity
                     .status(actualRespose.getStatusCode())
                     .contentType(actualRespose.getHeaders().getContentType())
-                    .contentLength(actualRespose.getHeaders().getContentLength())
+                    .contentLength(actualRespose.getHeaders().getContentLength() > 0 ? actualRespose.getHeaders().getContentLength() : actualRespose.getBody().length)
                     .location(actualRespose.getHeaders().getLocation())
                     .body(actualRespose.getBody());
         }

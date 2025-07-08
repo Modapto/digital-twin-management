@@ -46,6 +46,12 @@ jobs:
         echo "Pulling Docker image: $IMAGE_NAME"
         docker pull $IMAGE_NAME
 
+    - name: Patch aas4j with main branch
+      run: |
+        set -e
+        git clone https://github.com/eclipse-aas4j/aas4j.git aas4j
+        mvn -f aas4j/pom.xml clean spotless:apply install -DskipTests=true -Drevision=1.0.5-SNAPSHOT -Dmodel.version=1.0.5-SNAPSHOT
+
     - name: Build Dependencies
       run: |
         cd digital-twin
@@ -59,4 +65,4 @@ jobs:
         echo '{ "insecure-registries":["localhost:5000", "172.17.0.1:5000"] }' | sudo tee /etc/docker/daemon.json
         sudo systemctl restart docker
         docker info
-        mvn test -Dspring.config.location=classpath:/application-test-ci.properties
+        mvn spotless:apply test -Dspring.config.location=classpath:/application-test-ci.properties

@@ -67,4 +67,10 @@ public class LiveModuleRepository {
     public void unsubscribe(Module module) {
         modules.remove(module.getId());
     }
+
+
+    public void update(Module module) {
+        moduleRepository.save(module);
+        subscribe(module);
+    }
 }

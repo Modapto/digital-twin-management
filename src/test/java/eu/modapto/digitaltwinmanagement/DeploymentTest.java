@@ -109,7 +109,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
@@ -122,6 +121,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
@@ -172,7 +172,7 @@ class DeploymentTest {
         DeploymentTest.testConfig = testConfig;
     }
 
-    @MockBean
+    @MockitoBean
     private KafkaTemplate<String, String> kafkaTemplate;
 
     @InjectMocks
@@ -352,6 +352,17 @@ class DeploymentTest {
                     }
                     catch (DockerException e) {
                         LOGGER.debug("exception cleaning up internal smart service container {}", x.getContainerId(), e);
+                    }
+                });
+        dockerClient.listVolumesCmd().exec().getVolumes().stream()
+                .filter(x -> x.getName().startsWith("vol-"))
+                .forEach(x -> {
+                    try {
+                        DockerHelper.removeVolume(dockerClient, x.getName());
+                        LOGGER.debug("cleaned up volume {}", x.getName());
+                    }
+                    catch (Exception e) {
+                        LOGGER.debug("exception cleaning up volume {}", x.getName(), e);
                     }
                 });
     }
