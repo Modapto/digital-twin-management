@@ -361,7 +361,7 @@ class DeploymentTest {
                         DockerHelper.removeVolume(dockerClient, x.getName());
                         LOGGER.debug("cleaned up volume {}", x.getName());
                     }
-                    catch (DockerException e) {
+                    catch (Exception e) {
                         LOGGER.debug("exception cleaning up volume {}", x.getName(), e);
                     }
                 });
