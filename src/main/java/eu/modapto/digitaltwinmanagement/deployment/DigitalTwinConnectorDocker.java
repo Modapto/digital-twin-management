@@ -120,10 +120,15 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
             return;
         }
         if (dockerAvailable) {
-            DockerHelper.unsubscribeFromLogs(dtConfig.getModule().getContainerId());
-            DockerHelper.stopContainer(dockerClient, dtConfig.getModule().getContainerId());
-            DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
-            DockerHelper.removeVolume(dockerClient, DockerHelper.getVolume(dtConfig.getModule()));
+            try {
+                DockerHelper.unsubscribeFromLogs(dtConfig.getModule().getContainerId());
+                DockerHelper.stopContainer(dockerClient, dtConfig.getModule().getContainerId());
+                DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
+                DockerHelper.removeVolume(dockerClient, DockerHelper.getVolume(dtConfig.getModule()));
+            }
+            catch (DockerException e) {
+                LOGGER.warn("failed to clean docker for module (moduleId: {})", dtConfig.getModule().getId(), e);
+            }
         }
         cleanUpTempDirectoryAndFiles();
         LOGGER.debug("module stopped (moduleId: {})", dtConfig.getModule().getId());
@@ -278,8 +283,13 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                         "Restarting existing docker container for Digital Twin failed - container will be deleted and re-created (type: DOCKER, moduleId: {}, containerId: {})",
                         dtConfig.getModule().getId(),
                         dtConfig.getModule().getContainerId());
-                DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
-                DockerHelper.removeVolume(dockerClient, DockerHelper.getVolume(dtConfig.getModule()));
+                try {
+                    DockerHelper.removeContainer(dockerClient, dtConfig.getModule().getContainerId());
+                    DockerHelper.removeVolume(dockerClient, DockerHelper.getVolume(dtConfig.getModule()));
+                }
+                catch (DockerException e2) {
+                    LOGGER.warn("failed to clean old docker for module (moduleId: {})", dtConfig.getModule().getId(), e2);
+                }
             }
         }
         else {

@@ -261,10 +261,9 @@ public class DockerHelper {
             client.removeVolumeCmd(volumeName).exec();
             LOGGER.debug("volume removed (volume: {})", volumeName);
         }
-        catch (DockerException e) {
-            LOGGER.warn("failed to removed volume (volume: {}, reason: {})", volumeName, e.getMessage(), e);
+        catch (Exception e) {
+            throw new DockerException(String.format("failed to removed volume (volume: %s, reason: %s)", volumeName, e.getMessage()), e);
         }
-
     }
 
 
