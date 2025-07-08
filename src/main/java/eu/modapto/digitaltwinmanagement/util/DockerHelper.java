@@ -257,8 +257,14 @@ public class DockerHelper {
             LOGGER.error("unable delete volume as it is being used (volume: {})", volumeName);
             return;
         }
-        client.removeVolumeCmd(volumeName).exec();
-        LOGGER.debug("volume removed (volume: {})", volumeName);
+        try {
+            client.removeVolumeCmd(volumeName).exec();
+            LOGGER.debug("volume removed (volume: {})", volumeName);
+        }
+        catch (DockerException e) {
+            LOGGER.warn("failed to removed volume (volume: {}, reason: {})", volumeName, e.getMessage(), e);
+        }
+
     }
 
 
