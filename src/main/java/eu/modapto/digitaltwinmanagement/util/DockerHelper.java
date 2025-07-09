@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
@@ -272,14 +273,16 @@ public class DockerHelper {
             return;
         }
         LOGGER.debug("populating volume with data... (volume: {})", containerInfo.getVolumeName());
-        ensureImagePresent(client, TEMP_CONTAINER_IMAGE);
-        CreateContainerResponse tempContainer = client.createContainerCmd(TEMP_CONTAINER_IMAGE)
-                .withCmd("sh", "-c", "while true; do sleep 1; done") // Keep container running
-                .withHostConfig(HostConfig.newHostConfig().withBinds(
-                        new Bind(containerInfo.getVolumeName(), new Volume(containerInfo.getMountPathDst()))))
-                .exec();
-        client.startContainerCmd(tempContainer.getId()).exec();
+        final AtomicReference<String> tempContainerId = new AtomicReference<>();
         try {
+            ensureImagePresent(client, TEMP_CONTAINER_IMAGE);
+            CreateContainerResponse tempContainer = client.createContainerCmd(TEMP_CONTAINER_IMAGE)
+                    .withCmd("sh", "-c", "while true; do sleep 1; done")
+                    .withHostConfig(HostConfig.newHostConfig().withBinds(
+                            new Bind(containerInfo.getVolumeName(), new Volume(containerInfo.getMountPathDst()))))
+                    .exec();
+            client.startContainerCmd(tempContainer.getId()).exec();
+            tempContainerId.set(tempContainer.getId());
             File tempFile = File.createTempFile(containerInfo.getVolumeName(), ".tar");
             LOGGER.debug("adding dir to volume (dir: {}, volume: {})", containerInfo.getMountPathSrc(), containerInfo.getVolumeName());
             CompressArchiveUtil.tar(Paths.get(containerInfo.getMountPathSrc()), tempFile.toPath(), true, true);
@@ -294,20 +297,22 @@ public class DockerHelper {
             LOGGER.error("error populating volume with data (volume: {})", containerInfo.getVolumeName(), e);
         }
         finally {
-            try {
-                new Thread(() -> {
-                    try {
-                        //DockerClient newClient = newClient();
-                        client.stopContainerCmd(tempContainer.getId()).exec();
-                        client.removeContainerCmd(tempContainer.getId()).exec();
-                    }
-                    catch (Exception e) {
-                        LOGGER.debug("failed to stop and remove temporary container (containerId: {})", tempContainer.getId(), e);
-                    }
-                }).start();
-            }
-            catch (Exception e) {
-                LOGGER.debug("exception in thread stopping and removing temporary container (containerId: {})", tempContainer.getId(), e);
+            if (!StringHelper.isBlank(tempContainerId.get())) {
+                try {
+                    new Thread(() -> {
+                        try {
+                            DockerClient newClient = newClient();
+                            newClient.stopContainerCmd(tempContainerId.get()).exec();
+                            newClient.removeContainerCmd(tempContainerId.get()).exec();
+                        }
+                        catch (Exception e) {
+                            LOGGER.debug("failed to stop and remove temporary container (containerId: {})", tempContainerId.get(), e);
+                        }
+                    }).start();
+                }
+                catch (Exception e) {
+                    LOGGER.debug("exception in thread stopping and removing temporary container (containerId: {})", tempContainerId, e);
+                }
             }
         }
     }
