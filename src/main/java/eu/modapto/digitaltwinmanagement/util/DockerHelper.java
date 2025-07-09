@@ -267,7 +267,7 @@ public class DockerHelper {
     }
 
 
-    private static void populateVolumeWithData(DockerClient client, ContainerInfo containerInfo) {
+    private static void populateVolumeWithData(final DockerClient client, ContainerInfo containerInfo) {
         if (StringHelper.isBlank(containerInfo.getMountPathSrc())) {
             return;
         }
@@ -294,16 +294,21 @@ public class DockerHelper {
             LOGGER.error("error populating volume with data (volume: {})", containerInfo.getVolumeName(), e);
         }
         finally {
-            new Thread(() -> {
-                try {
-                    DockerClient newClient = newClient();
-                    newClient.stopContainerCmd(tempContainer.getId()).exec();
-                    newClient.removeContainerCmd(tempContainer.getId()).exec();
-                }
-                catch (Exception e) {
-                    LOGGER.debug("failed to stop and remove temporary container (containerId: {})", tempContainer.getId(), e);
-                }
-            }).start();
+            try {
+                new Thread(() -> {
+                    try {
+                        //DockerClient newClient = newClient();
+                        client.stopContainerCmd(tempContainer.getId()).exec();
+                        client.removeContainerCmd(tempContainer.getId()).exec();
+                    }
+                    catch (Exception e) {
+                        LOGGER.debug("failed to stop and remove temporary container (containerId: {})", tempContainer.getId(), e);
+                    }
+                }).start();
+            }
+            catch (Exception e) {
+                LOGGER.debug("exception in thread stopping and removing temporary container (containerId: {})", tempContainer.getId(), e);
+            }
         }
     }
 
