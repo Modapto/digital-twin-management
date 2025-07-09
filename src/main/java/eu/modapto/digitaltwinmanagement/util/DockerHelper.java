@@ -295,9 +295,14 @@ public class DockerHelper {
         }
         finally {
             new Thread(() -> {
-                DockerClient newClient = newClient();
-                newClient.stopContainerCmd(tempContainer.getId()).exec();
-                newClient.removeContainerCmd(tempContainer.getId()).exec();
+                try {
+                    DockerClient newClient = newClient();
+                    newClient.stopContainerCmd(tempContainer.getId()).exec();
+                    newClient.removeContainerCmd(tempContainer.getId()).exec();
+                }
+                catch (Exception e) {
+                    LOGGER.debug("failed to stop and remove temporary container (containerId: {})", tempContainer.getId(), e);
+                }
             }).start();
         }
     }
@@ -323,6 +328,7 @@ public class DockerHelper {
                 hostConfig.withBinds(new Bind(containerInfo.getVolumeName(), new Volume(containerInfo.getMountPathDst())));
             }
             catch (Exception e) {
+                LOGGER.error("failed to create container (containerName: {})", containerInfo.getContainerName(), e);
                 removeVolume(client, containerInfo.getVolumeName());
             }
         }
