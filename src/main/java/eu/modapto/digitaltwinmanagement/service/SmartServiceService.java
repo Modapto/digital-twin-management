@@ -19,8 +19,13 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
+import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.model.SmartService;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceAssignedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceUnassignedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceAssignedPayload;
+import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceUnassignedPayload;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
@@ -31,6 +36,7 @@ import java.util.Objects;
 import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,17 +56,21 @@ public class SmartServiceService {
     private final ModuleRepository moduleRepository;
     private final ObjectMapper mapper;
     private final DigitalTwinManager dtManager;
+    private final KafkaBridge kafkaBridge;
 
+    @Autowired
     public SmartServiceService(DigitalTwinManagementConfig config,
             SmartServiceRepository smartServiceRepository,
             ModuleRepository moduleRepository,
             ObjectMapper mapper,
-            DigitalTwinManager dtManager) {
+            DigitalTwinManager dtManager,
+            KafkaBridge kafkaBridge) {
         this.config = config;
         this.smartServiceRepository = smartServiceRepository;
         this.moduleRepository = moduleRepository;
         this.mapper = mapper;
         this.dtManager = dtManager;
+        this.kafkaBridge = kafkaBridge;
     }
 
 
@@ -89,18 +99,29 @@ public class SmartServiceService {
 
     public SmartService addServiceToModule(String moduleId, SmartServiceRequestDto request) throws Exception {
         Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId)));
-        LOGGER.debug("adding service to module (moduleId: {}, serviceCatalogId: {})", moduleId, request.getServiceCatalogId());
-        SmartService service = getServiceDetails(request.getServiceCatalogId());
-        applyRequestOverrides(service, request);
-        ensureValidServicename(service);
-        service.setModule(module);
-        smartServiceRepository.save(service);
-        module.getServices().add(service);
-        dtManager.update(module);
-        moduleRepository.save(module);
-        smartServiceRepository.save(service);
-        return module.getServiceById(service.getId());
+                .orElseThrow(() -> {
+                    fireServiceAssignedFailed(moduleId, request);
+                    return new ResourceNotFoundException(String.format("Module not found (id: %s)", moduleId));
+                });
+        try {
+            LOGGER.debug("adding service to module (moduleId: {}, serviceCatalogId: {})", moduleId, request.getServiceCatalogId());
+            SmartService service = getServiceDetails(request.getServiceCatalogId());
+            applyRequestOverrides(service, request);
+            ensureValidServicename(service);
+            service.setModule(module);
+            smartServiceRepository.save(service);
+            module.getServices().add(service);
+            dtManager.update(module);
+            moduleRepository.save(module);
+            smartServiceRepository.save(service);
+            fireServiceAssignedSuccess(service);
+            return module.getServiceById(service.getId());
+        }
+        catch (Exception e) {
+            fireServiceAssignedFailed(moduleId, request);
+            throw e;
+        }
+
     }
 
 
@@ -123,10 +144,17 @@ public class SmartServiceService {
 
 
     private void deleteService(SmartService service) throws Exception {
-        service.getModule().getServices().removeIf(x -> Objects.equals(x.getId(), service.getId()));
-        dtManager.update(service.getModule());
-        moduleRepository.save(service.getModule());
-        smartServiceRepository.delete(service);
+        try {
+            service.getModule().getServices().removeIf(x -> Objects.equals(x.getId(), service.getId()));
+            dtManager.update(service.getModule());
+            moduleRepository.save(service.getModule());
+            smartServiceRepository.delete(service);
+            fireServiceUnassignedEvent(service, true);
+        }
+        catch (Exception e) {
+            fireServiceUnassignedEvent(service, false);
+            throw e;
+        }
     }
 
 
@@ -149,6 +177,46 @@ public class SmartServiceService {
                 });
         result.setServiceCatalogId(serviceCatalogId);
         return result;
+    }
+
+
+    private void fireServiceAssignedFailed(String moduleId, SmartServiceRequestDto service) {
+        kafkaBridge.publish(SmartServiceAssignedEvent.builder()
+                .moduleId(moduleId)
+                .payload(SmartServiceAssignedPayload.builder()
+                        .name(service.getName())
+                        .serviceCatalogId(service.getServiceCatalogId())
+                        .success(false)
+                        .build())
+                .build());
+    }
+
+
+    private void fireServiceAssignedSuccess(SmartService service) {
+        kafkaBridge.publish(SmartServiceAssignedEvent.builder()
+                .moduleId(service.getModule().getId())
+                .payload(SmartServiceAssignedPayload.builder()
+                        .serviceId(service.getId())
+                        .name(service.getName())
+                        .serviceCatalogId(service.getServiceCatalogId())
+                        .endpoint(service.getExternalEndpoint())
+                        .success(true)
+                        .build())
+                .build());
+    }
+
+
+    private void fireServiceUnassignedEvent(SmartService service, boolean success) {
+        kafkaBridge.publish(SmartServiceUnassignedEvent.builder()
+                .moduleId(service.getModule().getId())
+                .payload(SmartServiceUnassignedPayload.builder()
+                        .serviceId(service.getId())
+                        .name(service.getName())
+                        .serviceCatalogId(service.getServiceCatalogId())
+                        .endpoint(service.getExternalEndpoint())
+                        .success(success)
+                        .build())
+                .build());
     }
 
 

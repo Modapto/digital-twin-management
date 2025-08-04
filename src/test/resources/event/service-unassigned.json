@@ -1,0 +1,18 @@
+
+{
+    "priority": "LOW",
+    "sourceComponent": "DT",
+    "eventType": "Smart Service unassigned",
+    "topic": "smart-service-unassigned",
+    "timestamp": "2025-01-30T14:12:00",
+    "smartService": "example-service-id",
+    "module": "example-module-id",
+    "results":
+            {
+                "id": "example-service-id",
+                "serviceCatalogId": "my-service-catalog-id",
+                "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
+                "name": "ExampleService",
+                "success": true
+            }
+}

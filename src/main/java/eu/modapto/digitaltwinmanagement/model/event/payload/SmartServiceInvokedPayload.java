@@ -34,6 +34,9 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SmartServiceInvokedPayload extends AbstractSmartServicePayload {
+
+    private String invocationId;
+
     @Singular
     @JsonSerialize(using = ElementValueMapSerializer.class)
     @JsonDeserialize(using = NullDeserializer.class)

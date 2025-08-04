@@ -17,7 +17,11 @@ package eu.modapto.digitaltwinmanagement.util;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceAssignedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceUnassignedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.payload.ModuleDetailsPayload;
+import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceAssignedPayload;
+import eu.modapto.digitaltwinmanagement.model.event.payload.SmartServiceUnassignedPayload;
 import java.time.LocalDateTime;
 
 
@@ -79,6 +83,8 @@ public class Constants {
     public static final String EVENT_MODULE_CREATED_FILENAME = "module-created.json";
     public static final String EVENT_MODULE_DELETED_FILENAME = "module-deleted.json";
     public static final String EVENT_MODULE_UPDATED_FILENAME = "module-updated.json";
+    public static final String EVENT_SERVICE_ASSIGNED_FILENAME = "service-assigned.json";
+    public static final String EVENT_SERVICE_UNASSIGNED_FILENAME = "service-unassigned.json";
     public static final String EVENT_SERVICE_INVOKED_FILENAME = "service-invoked.json";
     public static final String EVENT_SERVICE_FINISHED_FILENAME = "service-finished.json";
     public static final String EXAMPLE_MODULE_ID = "example-module-id";
@@ -105,6 +111,30 @@ public class Constants {
                     .moduleId(EXAMPLE_MODULE_ID)
                     .name(EXAMPLE_MODULE_NAME)
                     .endpoint("http://example.org/api/v3.0")
+                    .build())
+            .build();
+
+    public static final SmartServiceAssignedEvent EVENT_SERVICE_ASSIGNED = SmartServiceAssignedEvent.builder()
+            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
+            .moduleId(EXAMPLE_MODULE_ID)
+            .payload(SmartServiceAssignedPayload.builder()
+                    .serviceId(EXAMPLE_SERVICE_ID)
+                    .serviceCatalogId("my-service-catalog-id")
+                    .name("ExampleService")
+                    .endpoint("http://example.org/api/v3.0/xxxxx/foo")
+                    .success(true)
+                    .build())
+            .build();
+
+    public static final SmartServiceUnassignedEvent EVENT_SERVICE_UNASSIGNED = SmartServiceUnassignedEvent.builder()
+            .timestamp(LocalDateTime.of(2025, 1, 30, 14, 12))
+            .moduleId(EXAMPLE_MODULE_ID)
+            .payload(SmartServiceUnassignedPayload.builder()
+                    .serviceId(EXAMPLE_SERVICE_ID)
+                    .serviceCatalogId("my-service-catalog-id")
+                    .name("ExampleService")
+                    .endpoint("http://example.org/api/v3.0/xxxxx/foo")
+                    .success(true)
                     .build())
             .build();
 

@@ -14,16 +14,10 @@
  */
 package eu.modapto.digitaltwinmanagement.model.event.payload;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import de.fraunhofer.iosb.ilt.faaast.service.model.value.ElementValue;
-import eu.modapto.digitaltwinmanagement.serialization.ElementValueMapSerializer;
-import eu.modapto.digitaltwinmanagement.serialization.NullDeserializer;
-import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.Singular;
 import lombok.experimental.SuperBuilder;
 
 
@@ -31,14 +25,7 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
-public class SmartServiceFinishedPayload extends AbstractSmartServicePayload {
-
-    private String invocationId;
-
+@AllArgsConstructor
+public class SmartServiceUnassignedPayload extends AbstractSmartServicePayload {
     private boolean success;
-
-    @Singular
-    @JsonSerialize(using = ElementValueMapSerializer.class)
-    @JsonDeserialize(using = NullDeserializer.class)
-    private Map<String, ElementValue> outputArguments;
 }
