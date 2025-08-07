@@ -14,7 +14,7 @@
     <name>MODAPTO Digital Twin Management</name>
     <description>Manages MODAPTO Modules and Smart Servicies</description>
     <properties>
-        <aas4j.version>1.0.5-SNAPSHOT</aas4j.version>
+        <aas4j.version>1.0.5</aas4j.version>
         <docker-java.version>3.5.2</docker-java.version>
         <faaast.version>1.2.0</faaast.version>
         <fmi4j.version>0.38.0</fmi4j.version>

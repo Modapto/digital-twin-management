@@ -29,7 +29,6 @@ public abstract class AbstractSmartServicePayload {
     @JsonProperty("id")
     private String serviceId;
     private String serviceCatalogId;
-    private String invocationId;
     private String endpoint;
     private String name;
 }

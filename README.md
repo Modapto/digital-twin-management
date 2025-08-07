@@ -54,6 +54,20 @@ You may also need to provide docker credentials in case docker needs to fetch so
 
 Once a compose file is up and running, open the corresponding Postman collection and start running the request in order.
 
+## Events
+DT Management publishes events to Kafka. The following event topics are available
+
+- modapto-module-creation
+- modapto-module-update
+- modapto-module-deletion
+- smart-service-assigned
+- smart-service-unassigned
+- smart-service-invoke
+- smart-service-finish
+
+Example payloads for these events can be found at `src\test\resources\event`.
+
+
 ## Configuration
 Configuration happens via Spring framework.
 The typical way to configure the software is by providing an `application.properties` file.

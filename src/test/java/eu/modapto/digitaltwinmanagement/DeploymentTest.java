@@ -47,6 +47,7 @@ import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.config.SecurityConfig;
 import eu.modapto.digitaltwinmanagement.config.TestConfig;
+import eu.modapto.digitaltwinmanagement.mapper.SmartServiceMapper;
 import eu.modapto.digitaltwinmanagement.messagebus.KafkaBridge;
 import eu.modapto.digitaltwinmanagement.model.ArgumentMapping;
 import eu.modapto.digitaltwinmanagement.model.ArgumentType;
@@ -57,8 +58,10 @@ import eu.modapto.digitaltwinmanagement.model.event.AbstractEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleCreatedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleDeletedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.ModuleUpdatedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceAssignedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceFinishedEvent;
 import eu.modapto.digitaltwinmanagement.model.event.SmartServiceInvokedEvent;
+import eu.modapto.digitaltwinmanagement.model.event.SmartServiceUnassignedEvent;
 import eu.modapto.digitaltwinmanagement.model.request.ModuleRequestDto;
 import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.SmartServiceResponseDto;
@@ -493,6 +496,7 @@ class DeploymentTest {
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
         assertInvokeServiceResponse(actual, EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD, EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT);
     }
 
@@ -515,6 +519,7 @@ class DeploymentTest {
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
         assertInvokeServiceResponse(actual, INTERNAL_ADD_INVOKE_PAYLOAD, INTERNAL_ADD_EXPECTED_RESULT);
     }
 
@@ -565,6 +570,7 @@ class DeploymentTest {
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
         assertInvokeServiceResponse(actual, INTERNAL_ADD_WITH_MAPPINGS_INVOKE_PAYLOAD, INTERNAL_ADD_EXPECTED_RESULT);
     }
 
@@ -628,6 +634,7 @@ class DeploymentTest {
                 .andReturn()
                 .getResponse();
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
         assertInvokeServiceResponse(actual, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
     }
 
@@ -642,9 +649,11 @@ class DeploymentTest {
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
                         .build());
+        assertKafkaEvent(serviceAssignedEvent(SmartServiceMapper.toDto(service)));
         mockMvc.perform(delete(String.format(REST_PATH_SERVICE_TEMPLATE, service.getId()))
                 .header(HttpHeaders.AUTHORIZATION, getBearerToken()))
                 .andExpect(status().isNoContent());
+        assertKafkaEvent(serviceUnassignedEvent(SmartServiceMapper.toDto(service)));
         assertThat(smartServiceRepository.count()).isZero();
         assertThat(moduleRepository.findAll()).flatExtracting(Module::getServices).extracting(SmartService::getId).doesNotContain(service.getId());
     }
@@ -804,6 +813,28 @@ class DeploymentTest {
                         && Objects.equals(moduleId, x.getModuleId())
                         && Objects.equals(moduleName, x.getPayload().getName())
                         && Objects.equals(moduleId, x.getPayload().getModuleId()));
+    }
+
+
+    private EventInfo<SmartServiceAssignedEvent> serviceAssignedEvent(SmartServiceResponseDto service) {
+        return new EventInfo<>(SmartServiceAssignedEvent.class,
+                x -> checkCommonEventProperties(SmartServiceAssignedEvent.class, x)
+                        && Objects.equals(service.getId(), x.getPayload().getServiceId())
+                        && Objects.equals(service.getServiceCatalogId(), x.getPayload().getServiceCatalogId())
+                        && Objects.equals(true, x.getPayload().isSuccess())
+                        && Objects.equals(service.getName(), x.getPayload().getName())
+                        && Objects.equals(service.getEndpoint(), x.getPayload().getEndpoint()));
+    }
+
+
+    private EventInfo<SmartServiceUnassignedEvent> serviceUnassignedEvent(SmartServiceResponseDto service) {
+        return new EventInfo<>(SmartServiceUnassignedEvent.class,
+                x -> checkCommonEventProperties(SmartServiceUnassignedEvent.class, x)
+                        && Objects.equals(service.getId(), x.getPayload().getServiceId())
+                        && Objects.equals(service.getServiceCatalogId(), x.getPayload().getServiceCatalogId())
+                        && Objects.equals(true, x.getPayload().isSuccess())
+                        && Objects.equals(service.getName(), x.getPayload().getName())
+                        && Objects.equals(service.getEndpoint(), x.getPayload().getEndpoint()));
     }
 
 

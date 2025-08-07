@@ -107,6 +107,18 @@ class EventSerializationTest {
 
 
     @Test
+    void serializeServiceAssignEvent() throws JSONException, IOException {
+        assertSerialize(EVENT_SERVICE_ASSIGNED, EVENT_SERVICE_ASSIGNED_FILENAME);
+    }
+
+
+    @Test
+    void serializeServiceUnassignEvent() throws JSONException, IOException {
+        assertSerialize(EVENT_SERVICE_UNASSIGNED, EVENT_SERVICE_UNASSIGNED_FILENAME);
+    }
+
+
+    @Test
     void serializeServiceInvokeEvent() throws JSONException, IOException {
         assertSerialize(EVENT_SERVICE_INVOKED, EVENT_SERVICE_INVOKED_FILENAME);
     }
