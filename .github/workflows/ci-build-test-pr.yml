@@ -46,13 +46,6 @@ jobs:
         echo "Pulling Docker image: $IMAGE_NAME"
         docker pull $IMAGE_NAME
 
-    - name: Patch aas4j with main branch
-      run: |
-        set -e
-        git clone https://github.com/eclipse-aas4j/aas4j.git aas4j
-        git -C aas4j checkout 1.0.5
-        mvn -f aas4j/pom.xml clean spotless:apply install -DskipTests=true -Drevision=1.0.5 -Dmodel.version=1.0.5
-
     - name: Build Dependencies
       run: |
         cd digital-twin
