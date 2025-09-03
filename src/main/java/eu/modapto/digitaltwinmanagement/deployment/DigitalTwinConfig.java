@@ -33,4 +33,5 @@ public class DigitalTwinConfig {
     private String messageBusMqttHost;
     private int messageBusMqttPort;
     private List<AssetConnectionConfig> assetConnections;
+    private boolean smtSimulationReturnResultsForEachStep;
 }

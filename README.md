@@ -161,6 +161,10 @@ dt.deployment.docker.moduleContainerPrefix=modapto-module-
 # Prefix for docker container names for (internal) smart services
 dt.deployment.docker.serviceContainerPrefix=modapto-service-
 
+###
+# If true, embedded service calls return results for each step, otherwise only for last step (=final result)
+modapto.embedded-service.returnResultsForEachStep=true
+
 ### DB MEMORY
 # Configuration for in-memory H2 database
 spring.datasource.url=jdbc:h2:mem:testdb

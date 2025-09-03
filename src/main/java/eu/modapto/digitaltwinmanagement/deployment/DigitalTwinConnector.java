@@ -64,7 +64,9 @@ public abstract class DigitalTwinConnector {
 
 
     protected SimulationSubmodelTemplateProcessorConfig getSimulationSubmodelTemplateProcessorConfig() {
-        return SimulationSubmodelTemplateProcessorConfig.builder().build();
+        return SimulationSubmodelTemplateProcessorConfig.builder()
+                .returnResultsForEachStep(dtConfig.isSmtSimulationReturnResultsForEachStep())
+                .build();
     }
 
 

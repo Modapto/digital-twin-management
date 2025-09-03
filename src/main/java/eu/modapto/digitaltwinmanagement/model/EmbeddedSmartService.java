@@ -14,9 +14,16 @@
  */
 package eu.modapto.digitaltwinmanagement.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
+import jakarta.persistence.Transient;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -30,6 +37,12 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @DiscriminatorValue("Embedded")
 public class EmbeddedSmartService extends SmartService {
+
+    private static final String PROPERTY_RETURN_RESULTS_FOR_EACH_STEP = "returnResultsForEachStep";
+    private static final String PROPERTY_INITIAL_ARGUMENTS = "initialArguments";
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @Lob
     private byte[] fmu;
 
@@ -40,5 +53,25 @@ public class EmbeddedSmartService extends SmartService {
 
     public void setFmu(byte[] fmu) {
         this.fmu = fmu;
+    }
+
+
+    @Transient
+    @JsonIgnore
+    public Optional<Boolean> isReturnResultsForEachStep() {
+        if (Objects.nonNull(properties) && properties.containsKey(PROPERTY_RETURN_RESULTS_FOR_EACH_STEP)) {
+            return Optional.of(Boolean.parseBoolean(Objects.toString(properties.get(PROPERTY_RETURN_RESULTS_FOR_EACH_STEP).toString())));
+        }
+        return Optional.empty();
+    }
+
+
+    @Transient
+    @JsonIgnore
+    public Optional<Map<String, String>> getInitialArguments() {
+        if (Objects.nonNull(properties) && properties.containsKey(PROPERTY_INITIAL_ARGUMENTS)) {
+            return Optional.of(MAPPER.convertValue(properties.get(PROPERTY_INITIAL_ARGUMENTS), new TypeReference<Map<String, String>>() {}));
+        }
+        return Optional.empty();
     }
 }

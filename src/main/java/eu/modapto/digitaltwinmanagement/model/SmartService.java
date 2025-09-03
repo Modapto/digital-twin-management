@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import eu.modapto.digitaltwinmanagement.jpa.ListOfSubmodelElementConverter;
+import eu.modapto.digitaltwinmanagement.jpa.MapToJsonConverter;
 import eu.modapto.digitaltwinmanagement.jpa.ReferenceConverter;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import jakarta.persistence.Convert;
@@ -84,6 +85,10 @@ public abstract class SmartService {
     @JsonIgnore
     @Convert(converter = ReferenceConverter.class)
     private Reference reference;
+
+    @Convert(converter = MapToJsonConverter.class)
+    @Builder.Default
+    protected Map<String, Object> properties = new HashMap<>();
 
     @ManyToOne
     @JoinColumn(name = "module_id")
