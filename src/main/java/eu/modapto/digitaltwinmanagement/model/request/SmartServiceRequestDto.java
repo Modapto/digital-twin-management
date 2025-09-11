@@ -53,9 +53,12 @@ public class SmartServiceRequestDto {
 
     private List<SubmodelElement> outputParameters;
 
-    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, description = "Allows to change input arguments source from user to constant value or to be fetched from another AAS element")
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, description = "Allows to change input arguments source from user to constant value or to be fetched from another AAS element.")
     private Map<String, ArgumentMapping> inputArgumentTypes;
 
-    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, description = "Allows to change output arguments source from user to constant value or to be written to another AAS element")
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, description = "Allows to change output arguments source from user to constant value or to be written to another AAS element.")
     private Map<String, ArgumentMapping> outputArgumentTypes;
+
+    @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, description = "Allows to add custom elements. Supported content vary for different types of services.")
+    private Map<String, Object> properties;
 }

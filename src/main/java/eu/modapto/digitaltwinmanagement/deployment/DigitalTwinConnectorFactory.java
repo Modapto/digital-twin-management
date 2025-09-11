@@ -15,8 +15,11 @@
 package eu.modapto.digitaltwinmanagement.deployment;
 
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
+import eu.modapto.digitaltwinmanagement.exception.BadRequestException;
+import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
 import eu.modapto.digitaltwinmanagement.model.Module;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -36,6 +39,25 @@ public class DigitalTwinConnectorFactory {
 
 
     public DigitalTwinConnector create(Module module) throws Exception {
+        boolean smtSimulationReturnResultsForEachStep = true;
+        List<Boolean> temp = module.getServices().stream()
+                .filter(EmbeddedSmartService.class::isInstance)
+                .map(EmbeddedSmartService.class::cast)
+                .map(x -> x.isReturnResultsForEachStep())
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .distinct()
+                .toList();
+        if (temp.isEmpty()) {
+            smtSimulationReturnResultsForEachStep = config.isEmbeddedServiceReturnResultsForEachStep();
+        }
+        else if (temp.size() == 1) {
+            smtSimulationReturnResultsForEachStep = temp.get(0);
+        }
+        else {
+            throw new BadRequestException("conflicting configuration - ReturnResultsForEachStep both true and false for some embedded services");
+        }
+
         DigitalTwinConfig dtConfig = DigitalTwinConfig.builder()
                 .module(module)
                 .environmentContext(module.getActualModel())
@@ -43,6 +65,7 @@ public class DigitalTwinConnectorFactory {
                 .messageBusMqttHost(AddressTranslationHelper.getModuleToHostAddress(module))
                 .messageBusMqttPort(config.getMqttPort())
                 .assetConnections(module.getAssetConnections())
+                .smtSimulationReturnResultsForEachStep(smtSimulationReturnResultsForEachStep)
                 .build();
         switch (Optional.ofNullable(module.getType()).orElse(DEFAULT_DEPLOYMENT_TYPE)) {
             case DOCKER -> {

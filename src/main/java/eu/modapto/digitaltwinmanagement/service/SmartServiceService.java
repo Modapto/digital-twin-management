@@ -106,6 +106,7 @@ public class SmartServiceService {
         try {
             LOGGER.debug("adding service to module (moduleId: {}, serviceCatalogId: {})", moduleId, request.getServiceCatalogId());
             SmartService service = getServiceDetails(request.getServiceCatalogId());
+            service.setProperties(request.getProperties());
             applyRequestOverrides(service, request);
             ensureValidServicename(service);
             service.setModule(module);

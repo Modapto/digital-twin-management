@@ -151,6 +151,7 @@ class DeploymentTest {
     // Variables initialized from resources    
     private static String EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD;
     private static String EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT;
+    private static String EMBEDDED_BOUNCING_BALL_SINGLE_RESULT_WITH_ARGUMENTS_EXPECTED_RESULT;
     private static String EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE;
 
     private static String INTERNAL_ADD_INVOKE_PAYLOAD;
@@ -228,6 +229,7 @@ class DeploymentTest {
         config.setPort(port);
         EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, EMBEDDED_BOUNCING_BALL_FILENAME);
         EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EMBEDDED_BOUNCING_BALL_FILENAME);
+        EMBEDDED_BOUNCING_BALL_SINGLE_RESULT_WITH_ARGUMENTS_EXPECTED_RESULT = readResource(PATH_SERVICE_RESULT, EMBEDDED_BOUNCING_BALL_SINGLE_RESULT_WITH_ARGUMENTS_FILENAME);
         EMBEDDED_BOUNCING_BALL_CATALOG_RESPONSE = readResource(PATH_SERVICE_CATALOG_RESPONSE, EMBEDDED_BOUNCING_BALL_FILENAME);
 
         INTERNAL_ADD_INVOKE_PAYLOAD = readResource(PATH_SERVICE_INVOKE, INTERNAL_ADD_FILENAME);
@@ -498,6 +500,33 @@ class DeploymentTest {
         SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
         assertKafkaEvent(serviceAssignedEvent(actual));
         assertInvokeServiceResponse(actual, EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD, EMBEDDED_BOUNCING_BALL_EXPECTED_RESULT);
+    }
+
+
+    @Test
+    void testCreateEmbeddedService_withSingleResult_withInitialArguments() throws Exception {
+        Module module = moduleService.createModule(newDefaultModule());
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
+        MockHttpServletResponse response = mockMvc.perform(
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(
+                                SmartServiceRequestDto.builder()
+                                        .serviceCatalogId(EMBEDDED_SMART_SERVICE_ID)
+                                        .properties(Map.of(
+                                                "returnResultsForEachStep", false,
+                                                "initialArguments", Map.of(
+                                                        "g", -20)))
+                                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
+                .andReturn()
+                .getResponse();
+        SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
+        assertInvokeServiceResponse(actual, EMBEDDED_BOUNCING_BALL_INVOKE_PAYLOAD, EMBEDDED_BOUNCING_BALL_SINGLE_RESULT_WITH_ARGUMENTS_EXPECTED_RESULT);
     }
 
 

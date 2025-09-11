@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 public class Constants {
     // Resource paths & files
     public static final String EMBEDDED_BOUNCING_BALL_FILENAME = "embedded-bouncing-ball.json";
+    public static final String EMBEDDED_BOUNCING_BALL_SINGLE_RESULT_WITH_ARGUMENTS_FILENAME = "embedded-bouncing-ball_singleResult_withArguments.json";
     public static final String INTERNAL_ADD_FILENAME = "internal-add.json";
     public static final String INTERNAL_ADD_WITH_MAPPINGS_FILENAME = "internal-add-with-mappings.json";
     public static final String INTERNAL_ADD_WITH_BLOB_FILENAME = "internal-add-with-blob.json";

@@ -17,6 +17,7 @@ package eu.modapto.digitaltwinmanagement;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
+import eu.modapto.digitaltwinmanagement.util.EmbeddedSmartServiceHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -27,5 +28,6 @@ public class AppInitializer {
     public AppInitializer(DigitalTwinManagementConfig config) {
         DockerHelper.setConfig(config);
         AddressTranslationHelper.setConfig(config);
+        EmbeddedSmartServiceHelper.setConfig(config);
     }
 }

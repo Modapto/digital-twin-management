@@ -103,6 +103,9 @@ public class DigitalTwinManagementConfig {
     @Value("${modapto.service-catalogue.path:}")
     private String serviceCataloguePath;
 
+    @Value("${modapto.embedded-service.returnResultsForEachStep:true}")
+    private boolean embeddedServiceReturnResultsForEachStep;
+
     public String getHostname() {
         return AddressTranslationHelper.ensureProtocolPresent(hostname);
     }
