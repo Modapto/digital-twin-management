@@ -37,7 +37,9 @@ import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -49,6 +51,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SmartServiceService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SmartServiceService.class);
+    private static final String BEARER_PREFIX = "Bearer ";
     private static final Random random = new Random();
 
     private final DigitalTwinManagementConfig config;
@@ -97,7 +100,7 @@ public class SmartServiceService {
     }
 
 
-    public SmartService addServiceToModule(String moduleId, SmartServiceRequestDto request) throws Exception {
+    public SmartService addServiceToModule(String moduleId, SmartServiceRequestDto request, Jwt token) throws Exception {
         Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> {
                     fireServiceAssignedFailed(moduleId, request);
@@ -105,7 +108,7 @@ public class SmartServiceService {
                 });
         try {
             LOGGER.debug("adding service to module (moduleId: {}, serviceCatalogId: {})", moduleId, request.getServiceCatalogId());
-            SmartService service = getServiceDetails(request.getServiceCatalogId());
+            SmartService service = getServiceDetails(request.getServiceCatalogId(), token);
             service.setProperties(request.getProperties());
             applyRequestOverrides(service, request);
             ensureValidServicename(service);
@@ -159,12 +162,13 @@ public class SmartServiceService {
     }
 
 
-    private SmartService getServiceDetails(String serviceCatalogId) {
+    private SmartService getServiceDetails(String serviceCatalogId, Jwt token) {
         LOGGER.debug("fetching service details from servie catalog (serviceCatalogId: {}, serviceCatalogHost: {}, serviceCatalogPath: {})",
                 serviceCatalogId, config.getServiceCatalogueHost(), config.getServiceCataloguePath());
         SmartService result = RestClient.create(config.getServiceCatalogueHost())
                 .get()
                 .uri(String.format(config.getServiceCataloguePath(), serviceCatalogId))
+                .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + token.getTokenValue())
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
                         return mapper.readValue(response.getBody(), ServiceDetailsResponseDto.class).asSmartService();

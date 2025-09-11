@@ -122,6 +122,8 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -210,6 +212,8 @@ class DeploymentTest {
     private ObjectMapper mapper;
 
     private static String token;
+
+    private static Jwt jwtToken;
 
     private static boolean initialized = false;
 
@@ -306,6 +310,9 @@ class DeploymentTest {
                 .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                 .build()
                 .tokenManager().getAccessToken().getToken();
+        jwtToken = NimbusJwtDecoder.withIssuerLocation(keycloak.getAuthServerUrl() + "/realms/" + KEYCLOAK_REALM)
+                .build()
+                .decode(token);
     }
 
 
@@ -673,11 +680,13 @@ class DeploymentTest {
         String serviceId = "test-delete-service";
         mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
         Module module = moduleService.createModule(newDefaultModule());
+
         SmartService service = smartServiceService.addServiceToModule(
                 module.getId(),
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
-                        .build());
+                        .build(),
+                jwtToken);
         assertKafkaEvent(serviceAssignedEvent(SmartServiceMapper.toDto(service)));
         mockMvc.perform(delete(String.format(REST_PATH_SERVICE_TEMPLATE, service.getId()))
                 .header(HttpHeaders.AUTHORIZATION, getBearerToken()))
@@ -697,7 +706,8 @@ class DeploymentTest {
                 module.getId(),
                 SmartServiceRequestDto.builder()
                         .serviceCatalogId(serviceId)
-                        .build());
+                        .build(),
+                jwtToken);
         mockMvc.perform(delete(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()))
                 .header(HttpHeaders.AUTHORIZATION, getBearerToken()))
                 .andExpect(status().isNoContent());
