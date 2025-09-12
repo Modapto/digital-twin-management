@@ -165,9 +165,10 @@ public class SmartServiceService {
     private SmartService getServiceDetails(String serviceCatalogId, Jwt token) {
         LOGGER.debug("fetching service details from servie catalog (serviceCatalogId: {}, serviceCatalogHost: {}, serviceCatalogPath: {})",
                 serviceCatalogId, config.getServiceCatalogueHost(), config.getServiceCataloguePath());
+        String url = String.format(config.getServiceCataloguePath(), serviceCatalogId);
         SmartService result = RestClient.create(config.getServiceCatalogueHost())
                 .get()
-                .uri(String.format(config.getServiceCataloguePath(), serviceCatalogId))
+                .uri(url)
                 .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + token.getTokenValue())
                 .exchange((request, response) -> {
                     if (response.getStatusCode().isSameCodeAs(HttpStatus.OK)) {
@@ -176,9 +177,10 @@ public class SmartServiceService {
                     throw new ResponseStatusException(
                             HttpStatus.BAD_GATEWAY,
                             String.format(
-                                    "Bad Gateway: Service Catalog is unavailable (host: %s, path: %s)",
-                                    config.getServiceCatalogueHost(),
-                                    config.getServiceCataloguePath()));
+                                    "Bad Gateway: Service Catalog is unavailable (url: %s, response code: %s, response body: %s)",
+                                    url,
+                                    response.getStatusCode(),
+                                    new String(response.getBody().readAllBytes())));
                 });
         result.setServiceCatalogId(serviceCatalogId);
         return result;
