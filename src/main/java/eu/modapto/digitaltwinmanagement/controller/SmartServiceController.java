@@ -31,6 +31,8 @@ import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -90,8 +92,9 @@ public class SmartServiceController {
             @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content)
     })
     @PostMapping("/modules/{moduleId}/services")
-    public ResponseEntity<SmartServiceResponseDto> createService(@PathVariable String moduleId, @RequestBody SmartServiceRequestDto request) throws Exception {
-        SmartServiceResponseDto result = SmartServiceMapper.toDto(smartServiceService.addServiceToModule(moduleId, request));
+    public ResponseEntity<SmartServiceResponseDto> createService(@AuthenticationPrincipal Jwt jwt, @PathVariable String moduleId, @RequestBody SmartServiceRequestDto request)
+            throws Exception {
+        SmartServiceResponseDto result = SmartServiceMapper.toDto(smartServiceService.addServiceToModule(moduleId, request, jwt));
         return ResponseEntity
                 .created(URI.create("/services/" + result.getId()))
                 .body(result);
