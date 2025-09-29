@@ -21,6 +21,7 @@ import static eu.modapto.digitaltwinmanagement.model.ArgumentType.REFERENCE;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.RestartPolicy;
+import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.ArgumentValidationMode;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.AssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.HttpAssetConnectionConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.http.provider.config.HttpOperationProviderConfig;
@@ -376,6 +377,9 @@ public class DigitalTwinManager {
         return HttpAssetConnectionConfig.builder()
                 .baseUrl(address.getBaseUrl())
                 .operationProvider(operation, HttpOperationProviderConfig.builder()
+                        .inputValidationMode(config.getDtInputValidationMode())
+                        .outputValidationMode(config.getDtOutputValidationMode())
+                        .inoutputValidationMode(ArgumentValidationMode.NONE)
                         .format("JSON")
                         .method(service.getMethod())
                         .path(address.getPath())

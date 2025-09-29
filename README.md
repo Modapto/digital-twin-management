@@ -149,6 +149,12 @@ dt-management.events.mqtt.queue.size=100
 dt-management.events.mqtt.thread.count=1
 
 ### DT
+# Validation mode for input parameters in FA³ST
+modapto.dt.operation.input.validation:REQUIRE_PRESENT_OR_DEFAULT
+
+# Validation mode for output parameters in FA³ST
+modapto.dt.operation.output.validation:REQUIRE_PRESENT_OR_DEFAULT
+
 # Docker image to use when starting DTs
 dt.deployment.docker.image=ghcr.io/modapto/digital-twin:latest
 
@@ -186,6 +192,12 @@ spring.datasource.password=...
 spring.jpa.hibernate.ddl-auto=update
 
 ### LOGGING
+# Log level for all classes in FA³ST namespaces
+dt.loglevel.faaast=INFO
+# Log level for all classes NOT in FA³ST namespaces
+dt.loglevel.external=WARN
+# Whether to show stacktraces in STD out/log or not
+dt.logging.showStacktrace=true
 logging.level.root=INFO
 logging.level.eu.modapto.digitaltwinmanagement=INFO
 logging.level.org.springframework.web=INFO
