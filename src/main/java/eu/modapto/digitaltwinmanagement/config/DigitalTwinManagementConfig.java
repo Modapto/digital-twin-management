@@ -14,6 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.config;
 
+import de.fraunhofer.iosb.ilt.faaast.service.assetconnection.ArgumentValidationMode;
 import eu.modapto.digitaltwinmanagement.deployment.DeploymentType;
 import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import lombok.Getter;
@@ -88,6 +89,15 @@ public class DigitalTwinManagementConfig {
     @Value("${dt.deployment.docker.image:ghcr.io/modapto/digital-twin:latest}")
     private String dtDockerImage;
 
+    @Value("${dt.loglevel.faaast:INFO}")
+    private String dtLoglevelFaaast;
+
+    @Value("${dt.loglevel.external:WARN}")
+    private String dtLoglevelExternal;
+
+    @Value("${dt.logging.showStacktrace:true}")
+    private boolean dtShowStacktrace;
+
     @Value("${dt.deployment.docker.restartPolicy:unless-stopped}")
     private String dtRestartPolicy;
 
@@ -102,6 +112,12 @@ public class DigitalTwinManagementConfig {
 
     @Value("${modapto.service-catalogue.path:}")
     private String serviceCataloguePath;
+
+    @Value("${modapto.dt.operation.input.validation:REQUIRE_PRESENT_OR_DEFAULT}")
+    private ArgumentValidationMode dtInputValidationMode;
+
+    @Value("${modapto.dt.operation.output.validation:REQUIRE_PRESENT_OR_DEFAULT}")
+    private ArgumentValidationMode dtOutputValidationMode;
 
     @Value("${modapto.embedded-service.returnResultsForEachStep:true}")
     private boolean embeddedServiceReturnResultsForEachStep;
