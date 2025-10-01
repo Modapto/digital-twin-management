@@ -24,21 +24,26 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 
 @RestController
@@ -50,13 +55,11 @@ public class HttpProxyController {
     private static final List<String> NON_FORWARDABLE_HEADERS = List.of(HttpHeaders.AUTHORIZATION);
     private final LiveModuleRepository liveModuleRepository;
     private final SecurityConfig securityConfig;
-    private final RestTemplate restTemplate;
 
     @Autowired
     public HttpProxyController(LiveModuleRepository liveModuleRepository, SecurityConfig securityConfig) {
         this.liveModuleRepository = liveModuleRepository;
         this.securityConfig = securityConfig;
-        this.restTemplate = new RestTemplate();
     }
 
 
@@ -79,29 +82,49 @@ public class HttpProxyController {
         String remainingPath = request.getRequestURI().substring(request.getRequestURI().indexOf(moduleId) + moduleId.length());
         String url = AddressTranslationHelper.getHostToModuleAddress(module, module.getExternalPort()).asUrl() + remainingPath;
         try {
-            LOGGER.debug("executing proxy call to DT (url: {})", url);
-            ResponseEntity<byte[]> actualRespose = restTemplate.exchange(url, method, copyBodyAndHeaders(request), byte[].class);
+            byte[] body = request.getInputStream().readAllBytes();
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest.Builder proxyRequestBuilder = HttpRequest.newBuilder()
+                    .uri(new URI(url));
+            copyHeaders(request, proxyRequestBuilder);
+            if (Objects.nonNull(body) && body.length > 0) {
+                proxyRequestBuilder.method(method.toString(), HttpRequest.BodyPublishers.ofByteArray(body));
+            }
+            else {
+                proxyRequestBuilder.method(method.toString(), HttpRequest.BodyPublishers.noBody());
+            }
+            HttpRequest proxyRequest = proxyRequestBuilder.build();
+            LOGGER.debug("executing proxy call to DT (url: {}, method: {}, headers: {}, body: {})",
+                    proxyRequest.uri(),
+                    proxyRequest.method(),
+                    proxyRequest.headers(),
+                    Objects.nonNull(body) ? new String(body) : "[empty]");
+            HttpResponse<byte[]> actualRespose = client.send(proxyRequestBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
             try {
                 LOGGER.debug("received response from DT (url: {}, status code: {}, payload: {})",
                         url,
-                        actualRespose.getStatusCode(),
-                        new String(actualRespose.getBody()));
+                        actualRespose.statusCode(),
+                        new String(actualRespose.body()));
             }
             catch (Exception e) {
                 LOGGER.debug("failed to log response", e);
             }
+            var response = ResponseEntity
+                    .status(actualRespose.statusCode());
 
-            return ResponseEntity
-                    .status(actualRespose.getStatusCode())
-                    .contentType(actualRespose.getHeaders().getContentType())
-                    .contentLength(actualRespose.getHeaders().getContentLength() > 0 ? actualRespose.getHeaders().getContentLength() : actualRespose.getBody().length)
-                    .location(actualRespose.getHeaders().getLocation())
-                    .body(actualRespose.getBody());
-        }
-        catch (HttpClientErrorException e) {
-            return ResponseEntity.status(e.getStatusCode())
-                    .headers(e.getResponseHeaders())
-                    .body(e.getResponseBodyAsByteArray());
+            Optional<String> contentType = actualRespose.headers().firstValue(HttpHeaders.CONTENT_TYPE);
+            if (contentType.isPresent()) {
+                response.contentType(MediaType.parseMediaType(contentType.get()));
+            }
+            OptionalLong contentLength = actualRespose.headers().firstValueAsLong(HttpHeaders.CONTENT_LENGTH);
+            if (contentLength.isPresent()) {
+                response.contentLength(contentLength.getAsLong());
+            }
+            Optional<String> location = actualRespose.headers().firstValue(HttpHeaders.LOCATION);
+            if (location.isPresent()) {
+                response.location(new URI(location.get()));
+            }
+            return response.body(actualRespose.body());
         }
         catch (IOException e) {
             LOGGER.debug("error proxying HTTP call to Digital Twin (moduleId: {}, reason: {})", moduleId, e.getMessage(), e);
@@ -114,11 +137,16 @@ public class HttpProxyController {
     }
 
 
-    private HttpEntity<byte[]> copyBodyAndHeaders(HttpServletRequest request) throws IOException {
-        HttpHeaders headers = new HttpHeaders();
+    private void copyHeaders(HttpServletRequest request, HttpRequest.Builder proxyRequestBuilder) {
         StreamHelper.toStream(request.getHeaderNames())
-                .filter(x -> !securityConfig.isSecureProxyDTs() || !NON_FORWARDABLE_HEADERS.contains(x))
-                .forEach(x -> headers.add(x, request.getHeader(x)));
-        return new HttpEntity<>(request.getInputStream().readAllBytes(), headers);
+                .filter(x -> !securityConfig.isSecureProxyDTs() || NON_FORWARDABLE_HEADERS.stream().noneMatch(y -> y.equalsIgnoreCase(x)))
+                .forEach(key -> StreamHelper.toStream(request.getHeaders(key)).forEach(value -> {
+                    try {
+                        proxyRequestBuilder.header(key, value);
+                    }
+                    catch (IllegalArgumentException e) {
+                        // ignore, as this filters out any restricted headers that are not allowed to be forwarded
+                    }
+                }));
     }
 }
