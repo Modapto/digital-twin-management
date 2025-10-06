@@ -219,10 +219,11 @@ logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5(%level) %-26.26(%.-25([%logg
 <!--changelog-anchor-->
 <!--start:changelog-header-->
 ## 0.6.0-SNAPSHOT (current development version)<!--end:changelog-header-->
-- enable authentication with service catalog by forwarding JWT from user request to service catalog
+- Enable authentication with service catalog by forwarding JWT from user request to service catalog
 
 ### Internal changes & bugfixes
-- make property `name` optional when assigning a smart service
+- Fixed bug that changes the submodelId when assigning more than one service to a module. This has caused existing service endpoint URLs to become invalid after adding a new service.
+- Make property `name` optional when assigning a smart service
 
 ## 0.5
 
