@@ -104,6 +104,7 @@ import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
@@ -166,8 +167,6 @@ class DeploymentTest {
     private static String EXTERNAL_INVOKE_PAYLOAD;
     private static String EXTERNAL_EXPECTED_RESULT;
     private static String EXTERNAL_CATALOG_RESPONSE;
-
-    // Default AAS model
 
     private static DockerClient dockerClient;
 
@@ -676,6 +675,57 @@ class DeploymentTest {
 
 
     @Test
+    void testCreateModuleWithMultipleServices() throws Exception {
+        Module module = moduleService.createModule(newDefaultModule());
+        String originalModuleId = module.getId();
+        assertKafkaEvent(moduleCreatedEvent(module.getId(), module.getName()));
+        // first service
+        MockHttpServletResponse response = mockMvc.perform(
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(
+                                SmartServiceRequestDto.builder()
+                                        .serviceCatalogId(EXTERNAL_SMART_SERVICE_ID)
+                                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
+                .andReturn()
+                .getResponse();
+        SmartServiceResponseDto service1 = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(service1));
+        assertInvokeServiceResponse(service1, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+        // second service
+        response = mockMvc.perform(
+                post(String.format(REST_PATH_MODULE_TEMPLATE, module.getId()) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(
+                                SmartServiceRequestDto.builder()
+                                        .serviceCatalogId(EXTERNAL_SMART_SERVICE_ID)
+                                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
+                .andReturn()
+                .getResponse();
+        SmartServiceResponseDto service2 = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(service2));
+        assertInvokeServiceResponse(service2, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+        // validate moduleId has not changed
+        List<Module> modules = moduleService.getAllModules();
+        assertThat(modules.size()).isEqualTo(1);
+        Module actualModule = modules.get(0);
+        assertThat(actualModule.getServices().size()).isEqualTo(2);
+        assertThat(actualModule.getId()).isEqualTo(originalModuleId);
+        // validate invoking first service still works
+        assertInvokeServiceResponse(service1, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+        assertInvokeServiceResponse(service2, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+    }
+
+
+    @Test
     void testDeleteService() throws Exception {
         String serviceId = "test-delete-service";
         mockServiceInCatalog(serviceId, EXTERNAL_CATALOG_RESPONSE);
@@ -827,6 +877,7 @@ class DeploymentTest {
                 }
             }));
         }
+        Mockito.reset(kafkaTemplate);
     }
 
 

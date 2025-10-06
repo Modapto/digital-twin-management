@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.eclipse.digitaltwin.aas4j.v3.model.Identifiable;
 import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
 import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.Property;
@@ -159,8 +160,12 @@ public class DigitalTwinManager {
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
         LOGGER.debug("creating actual model via copy...");
         EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
+        Submodel submodel = null;
+        if (!module.getServices().isEmpty()) {
+            submodel = createModaptoSubmodel(module.getActualModel());
+            actualModel.getEnvironment().getSubmodels().add(submodel);
+        }
         for (var service: module.getServices()) {
-            Submodel submodel = getOrCreateModaptoSubmodel(actualModel);
             Operation operation;
             if (service instanceof EmbeddedSmartService embedded) {
                 operation = EmbeddedSmartServiceHelper.addSmartService(actualModel, submodel, embedded);
@@ -287,22 +292,14 @@ public class DigitalTwinManager {
     }
 
 
-    private Submodel getOrCreateModaptoSubmodel(final EnvironmentContext environmentContext) {
-        return environmentContext.getEnvironment().getSubmodels().stream()
+    private Submodel createModaptoSubmodel(final EnvironmentContext currentEnvironment) {
+        String submodelId = currentEnvironment.getEnvironment().getSubmodels().stream()
                 .filter(x -> Objects.equals(MODAPTO_SUBMODEL_ID_SHORT, x.getIdShort()))
+                .map(Identifiable::getId)
                 .findFirst()
-                .orElseGet(() -> {
-                    Submodel submodel = createModaptoSubmodel();
-                    environmentContext.getEnvironment().getSubmodels().add(submodel);
-                    environmentContext.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels().add(ReferenceBuilder.forSubmodel(submodel));
-                    return submodel;
-                });
-    }
-
-
-    private Submodel createModaptoSubmodel() {
+                .orElseGet(() -> String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, IdHelper.uuid()));
         return new DefaultSubmodel.Builder()
-                .id(String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, IdHelper.uuid()))
+                .id(submodelId)
                 .idShort(MODAPTO_SUBMODEL_ID_SHORT)
                 .build();
     }
