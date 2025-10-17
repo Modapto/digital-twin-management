@@ -372,6 +372,7 @@ public class DigitalTwinManager {
         Address address = AddressTranslationHelper.getModuleToServiceAddress(service, port);
         LOGGER.debug("Creating asset connection (address: {})", address);
         return HttpAssetConnectionConfig.builder()
+                .httpVersion(HttpClient.Version.HTTP_1_1)
                 .baseUrl(address.getBaseUrl())
                 .operationProvider(operation, HttpOperationProviderConfig.builder()
                         .inputValidationMode(config.getDtInputValidationMode())
