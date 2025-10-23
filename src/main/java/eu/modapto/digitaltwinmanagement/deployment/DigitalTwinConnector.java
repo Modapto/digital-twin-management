@@ -16,7 +16,8 @@ package eu.modapto.digitaltwinmanagement.deployment;
 
 import de.fraunhofer.iosb.ilt.faaast.service.config.CoreConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.endpoint.http.HttpEndpointConfig;
-import de.fraunhofer.iosb.ilt.faaast.service.messagebus.mqtt.MessageBusMqttConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.messagebus.internalmqttforward.MessageBusInternalMqttForwardConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.model.messagebus.event.access.ExecuteEventMessage;
 import de.fraunhofer.iosb.ilt.faaast.service.model.validation.ModelValidatorConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.util.IdHelper;
@@ -52,10 +53,10 @@ public abstract class DigitalTwinConnector {
     }
 
 
-    protected MessageBusMqttConfig getMessageBusMqttConfig() {
-        return MessageBusMqttConfig.builder()
+    protected MessageBusInternalMqttForwardConfig getMessageBusMqttConfig() {
+        return MessageBusInternalMqttForwardConfig.builder()
+                .eventToForward(ExecuteEventMessage.class)
                 .host(dtConfig.getMessageBusMqttHost())
-                .internal(false)
                 .port(dtConfig.getMessageBusMqttPort())
                 .topicPrefix(String.format("module/%s/", dtConfig.getModule().getId()))
                 .clientId(String.format("module-%s-%s", dtConfig.getModule().getId(), IdHelper.uuidAlphanumeric8()))

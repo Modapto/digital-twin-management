@@ -196,7 +196,7 @@
         </dependency>
         <dependency>
             <groupId>de.fraunhofer.iosb.ilt.faaast.service</groupId>
-            <artifactId>messagebus-mqtt</artifactId>
+            <artifactId>messagebus-internal-mqtt-forward</artifactId>
             <version>${faaast.version}</version>
             <exclusions>
                 <exclusion>
