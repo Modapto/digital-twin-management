@@ -14,6 +14,7 @@
  */
 package eu.modapto.digitaltwinmanagement.model.event.payload;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import de.fraunhofer.iosb.ilt.faaast.service.model.value.ElementValue;
@@ -38,6 +39,7 @@ public class SmartServiceFinishedPayload extends AbstractSmartServicePayload {
     private boolean success;
 
     @Singular
+    @JsonIgnore
     @JsonSerialize(using = ElementValueMapSerializer.class)
     @JsonDeserialize(using = NullDeserializer.class)
     private Map<String, ElementValue> outputArguments;
