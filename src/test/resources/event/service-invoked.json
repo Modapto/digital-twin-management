@@ -12,15 +12,6 @@
                 "id": "example-service-id",
                 "serviceCatalogId": "my-service-catalog-id",
                 "endpoint": "http://example.org/api/v3.0/xxxxx/foo",
-                "name": "ExampleService",
-                "inputArguments":
-                        {
-                            "collection1":
-                                    {
-                                        "stringValue": "foo",
-                                        "doubleValue": 11.22
-                                    },
-                            "intValue": 42
-                        }
+                "name": "ExampleService"
             }
 }
