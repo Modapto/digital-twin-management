@@ -23,7 +23,7 @@ import com.github.dockerjava.api.model.RestartPolicy;
 import de.fraunhofer.iosb.ilt.faaast.service.config.ServiceConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.EnvironmentSerializationManager;
 import de.fraunhofer.iosb.ilt.faaast.service.dataformat.SerializationException;
-import de.fraunhofer.iosb.ilt.faaast.service.filestorage.filesystem.FileStorageFilesystemConfig;
+import de.fraunhofer.iosb.ilt.faaast.service.filestorage.memory.FileStorageInMemoryConfig;
 import de.fraunhofer.iosb.ilt.faaast.service.model.serialization.DataFormat;
 import de.fraunhofer.iosb.ilt.faaast.service.persistence.memory.PersistenceInMemoryConfig;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
@@ -35,7 +35,6 @@ import eu.modapto.digitaltwinmanagement.util.DockerHelper.ContainerInfo;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Collectors;
@@ -49,7 +48,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     public static final int CONTAINER_HTTP_PORT_INTERNAL = 8080;
     private static final String CONTAINER_MOUNT_PATH = "/app/mount";
-    private static final String CONTAINER_MODEL_FILE = "/app/mount/model.json";
+    private static final String CONTAINER_MODEL_FILE = "/app/mount/model.aasx";
     private static final String CONTAINER_CONFIG_FILE = "/app/mount/config.json";
     private static final String CONTAINER_FILE_STORGE_PATH = "/app/mount/file-storage";
 
@@ -58,7 +57,6 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private Path contextPath;
     private File modelFile;
     private File configFile;
-    private Path fileStoragePath;
 
     private DockerClient dockerClient;
     private boolean running = false;
@@ -142,7 +140,6 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
         initTempDirectoryAndFiles();
         writeConfigFile();
         writeModelFile();
-        writeAuxiliaryFiles();
         LOGGER.debug("DT container initialized (moduleId: {})", dtConfig.getModule().getId());
     }
 
@@ -173,10 +170,8 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                 LOGGER.debug("created directory {}", contextPath);
                 created = true;
             }
-            modelFile = contextPath.resolve("model.json").toFile();
+            modelFile = contextPath.resolve("model.aasx").toFile();
             configFile = contextPath.resolve("config.json").toFile();
-            fileStoragePath = contextPath.resolve("file-storage");
-            LOGGER.debug("using temp files/directories: modelFile={}, configFile={}, fileStoragePath={}", modelFile, configFile, fileStoragePath);
         }
         catch (IOException e) {
             throw new DigitalTwinException("failed to initialize temp directory and files", e);
@@ -201,9 +196,7 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
                 .submodelTemplateProcessor(getSimulationSubmodelTemplateProcessorConfig())
                 .assetConnections(dtConfig.getAssetConnections())
                 .persistence(PersistenceInMemoryConfig.builder().build())
-                .fileStorage(FileStorageFilesystemConfig.builder()
-                        .existingDataPath(CONTAINER_FILE_STORGE_PATH)
-                        .build())
+                .fileStorage(FileStorageInMemoryConfig.builder().build())
                 .build();
         try {
             new ObjectMapper()
@@ -220,46 +213,11 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
 
     private void writeModelFile() {
         try {
-            EnvironmentSerializationManager.serializerFor(DataFormat.JSON).write(modelFile, dtConfig.getEnvironmentContext());
+            EnvironmentSerializationManager.serializerFor(DataFormat.AASX).write(modelFile, dtConfig.getEnvironmentContext());
         }
         catch (SerializationException | IOException e) {
             throw new DigitalTwinException("failed to serialize AAS model to file", e);
         }
-    }
-
-
-    private void writeAuxiliaryFiles() {
-        LOGGER.debug("writing auxiliary files...");
-        try {
-            if (!fileStoragePath.toFile().exists()) {
-                LOGGER.debug("creating directory... {}", fileStoragePath);
-                Files.createDirectory(fileStoragePath);
-                LOGGER.debug("directory created {}", fileStoragePath);
-            }
-        }
-        catch (IOException e) {
-            throw new DigitalTwinException(String.format(
-                    "failed to create auxiliary file directory (%s)", fileStoragePath),
-                    e);
-        }
-        for (var file: dtConfig.getEnvironmentContext().getFiles()) {
-            try {
-                Path path = fileStoragePath.resolve(file.getPath().startsWith("/")
-                        ? file.getPath().substring(1)
-                        : file.getPath());
-                LOGGER.debug("writing auxiliary file {}", path);
-                Files.createDirectories(path.getParent());
-                if (path.toFile().exists()) {
-
-                }
-                Files.write(path, file.getFileContent());
-                LOGGER.debug("auxiliary file written {}", path);
-            }
-            catch (IOException | InvalidPathException e) {
-                LOGGER.error("failed to write auxiliary file '{}'", file.getPath(), e);
-            }
-        }
-
     }
 
 
