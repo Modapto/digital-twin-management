@@ -50,7 +50,6 @@ public class DigitalTwinConnectorDocker extends DigitalTwinConnector {
     private static final String CONTAINER_MOUNT_PATH = "/app/mount";
     private static final String CONTAINER_MODEL_FILE = "/app/mount/model.aasx";
     private static final String CONTAINER_CONFIG_FILE = "/app/mount/config.json";
-    private static final String CONTAINER_FILE_STORGE_PATH = "/app/mount/file-storage";
 
     private static final Path TMP_DIR = Paths.get(System.getProperty("java.io.tmpdir") + "/dt-context");
 

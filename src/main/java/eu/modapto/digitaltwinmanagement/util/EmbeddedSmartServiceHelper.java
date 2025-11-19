@@ -258,7 +258,7 @@ public class EmbeddedSmartServiceHelper {
 
 
     private static String getFmuFilename(EmbeddedSmartService service) {
-        return service.getName() + ".fmu";
+        return "/" + service.getName() + ".fmu";
     }
 
 
