@@ -76,7 +76,7 @@ public class EmbeddedSmartServiceHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddedSmartServiceHelper.class);
 
-    private static final String FILENAME_INITIAL_VARIABLES = "fmu-init.properties";
+    private static final String FILENAME_INITIAL_VARIABLES = "/fmu-init.properties";
 
     private static DigitalTwinManagementConfig config;
 
@@ -258,7 +258,7 @@ public class EmbeddedSmartServiceHelper {
 
 
     private static String getFmuFilename(EmbeddedSmartService service) {
-        return service.getName() + ".fmu";
+        return "/" + service.getName() + ".fmu";
     }
 
 
