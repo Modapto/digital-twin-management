@@ -45,7 +45,6 @@ import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import eu.modapto.digitaltwinmanagement.util.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
-import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -62,6 +61,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
 import org.eclipse.digitaltwin.aas4j.v3.model.Identifiable;
 import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
 import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
@@ -159,16 +159,20 @@ public class DigitalTwinManager {
 
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
         LOGGER.debug("creating actual model via copy...");
-        EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
+        EnvironmentContext newActualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         Submodel submodel = null;
         if (!module.getServices().isEmpty()) {
             submodel = createModaptoSubmodel(module.getActualModel());
-            actualModel.getEnvironment().getSubmodels().add(submodel);
+            newActualModel.getEnvironment().getSubmodels().add(submodel);
+            Reference submodelReference = ReferenceBuilder.forSubmodel(submodel.getId());
+            if (Objects.isNull(ReferenceHelper.findSameReference(newActualModel.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels(), submodelReference))) {
+                newActualModel.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels().add(submodelReference);
+            }
         }
         for (var service: module.getServices()) {
             Operation operation;
             if (service instanceof EmbeddedSmartService embedded) {
-                operation = EmbeddedSmartServiceHelper.addSmartService(actualModel, submodel, embedded);
+                operation = EmbeddedSmartServiceHelper.addSmartService(newActualModel, submodel, embedded);
             }
             else if (service instanceof InternalSmartService internal) {
                 ensureDockerRunning();
@@ -193,7 +197,7 @@ public class DigitalTwinManager {
             handleInputArgumentTypes(service, operation);
             service.setReference(ReferenceBuilder.forSubmodel(submodel, operation));
         }
-        module.setActualModel(actualModel);
+        module.setActualModel(newActualModel);
     }
 
 
@@ -293,11 +297,16 @@ public class DigitalTwinManager {
 
 
     private Submodel createModaptoSubmodel(final EnvironmentContext currentEnvironment) {
-        String submodelId = currentEnvironment.getEnvironment().getSubmodels().stream()
-                .filter(x -> Objects.equals(MODAPTO_SUBMODEL_ID_SHORT, x.getIdShort()))
-                .map(Identifiable::getId)
-                .findFirst()
-                .orElseGet(() -> String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, IdHelper.uuid()));
+        String submodelId = MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE;
+        submodelId = Optional.ofNullable(currentEnvironment)
+                .map(EnvironmentContext::getEnvironment)
+                .map(Environment::getSubmodels)
+                .filter(Objects::nonNull)
+                .flatMap(submodels -> submodels.stream()
+                        .filter(x -> Objects.equals(MODAPTO_SUBMODEL_ID_SHORT, x.getIdShort()))
+                        .map(Identifiable::getId)
+                        .findFirst())
+                .orElse(submodelId);
         return new DefaultSubmodel.Builder()
                 .id(submodelId)
                 .idShort(MODAPTO_SUBMODEL_ID_SHORT)

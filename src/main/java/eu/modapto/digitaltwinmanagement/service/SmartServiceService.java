@@ -30,7 +30,6 @@ import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
-import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -229,20 +228,18 @@ public class SmartServiceService {
 
     private void ensureValidServicename(SmartService service) {
         String name = service.getName();
+        String defaultName = service.getId();
         if (StringHelper.isBlank(name)) {
-            name = randomLowercaseChar() + IdHelper.uuidAlphanumeric();
+            name = service.getId();
         }
         else {
             name = name.replace(" ", "_")
                     .replaceAll("[^a-zA-Z0-9_]", "");
-            if (!name.matches("^[a-zA-Z].*")) {
-                name = randomLowercaseChar() + name;
+            if (!name.matches("^[a-zA-Z].*") || name.length() < 5) {
+                name = service.getId();
             }
-            if (name.length() > 128) {
+            else if (name.length() > 128) {
                 name = name.substring(0, 128);
-            }
-            if (name.length() < 5) {
-                name = name + "_" + IdHelper.uuidAlphanumeric8();
             }
         }
         service.setName(name);
@@ -254,7 +251,7 @@ public class SmartServiceService {
             service.setName(request.getName());
         }
         else {
-            service.setName(String.format("%s_%s", service.getName(), IdHelper.uuidAlphanumeric16()));
+            service.setName(service.getName());
         }
         if (Objects.nonNull(request.getDescription())) {
             service.setDescription(request.getDescription());

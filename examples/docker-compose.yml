@@ -65,7 +65,7 @@ services:
       - modapto
 
   dtm-db:
-    image: postgres:latest
+    image: postgres:18
     restart: always
     environment:
       POSTGRES_DB: dtm
@@ -74,7 +74,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - postgres_volume:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql
     networks:
       - modapto
 

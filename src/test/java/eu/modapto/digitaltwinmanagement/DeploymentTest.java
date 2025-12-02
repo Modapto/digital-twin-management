@@ -85,11 +85,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.core.SerializationException;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.json.JsonSerializer;
+import org.eclipse.digitaltwin.aas4j.v3.model.AssetKind;
 import org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd;
 import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultAssetAdministrationShell;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultAssetInformation;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultBlob;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultEnvironment;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
@@ -443,6 +445,72 @@ class DeploymentTest {
 
 
     @Test
+    void testUpdateModuleWithExternalServicePresent() throws Exception {
+        Environment environment = newDefaultEnvironment();
+        MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(
+                        ModuleRequestDto.builder()
+                                .aas(asJsonBase64(environment))
+                                .name(AAS_ID_SHORT)
+                                .type(testConfig.getDtDeplyomentType())
+                                .format(DataFormat.JSON)
+                                .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_MODULE)))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String moduleId = extractIdFromLocationHeader(result, REGEX_LOCATION_HEADER_MODULE);
+        assertKafkaEvent(moduleCreatedEvent(moduleId, AAS_ID_SHORT));
+        // assign service
+        MockHttpServletResponse response = mockMvc.perform(
+                post(String.format(REST_PATH_MODULE_TEMPLATE, moduleId) + REST_PATH_SERVICES)
+                        .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(
+                                SmartServiceRequestDto.builder()
+                                        .serviceCatalogId(EXTERNAL_SMART_SERVICE_ID)
+                                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string(HttpHeaders.LOCATION, matchesPattern(REGEX_LOCATION_HEADER_SERVICE)))
+                .andReturn()
+                .getResponse();
+        SmartServiceResponseDto actual = mapper.readValue(response.getContentAsByteArray(), SmartServiceResponseDto.class);
+        assertKafkaEvent(serviceAssignedEvent(actual));
+        assertInvokeServiceResponse(actual, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+
+        // update model
+        environment.getSubmodels().get(0).getSubmodelElements().add(
+                new DefaultProperty.Builder()
+                        .idShort("newProperty")
+                        .value("new")
+                        .valueType(DataTypeDefXsd.STRING)
+                        .build());
+        result = mockMvc.perform(put(String.format(REST_PATH_MODULE_TEMPLATE, moduleId))
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(ModuleRequestDto.builder()
+                        .aas(asJsonBase64(environment))
+                        .type(testConfig.getDtDeplyomentType())
+                        .format(DataFormat.JSON)
+                        .build())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andReturn();
+        assertTrue(moduleService.getModuleById(moduleId).getActualModel().getEnvironment().getSubmodels().get(0).getSubmodelElements().stream()
+                .anyMatch(x -> Objects.equals("newProperty", x.getIdShort())));
+        assertKafkaEvent(moduleUpdatedEvent(moduleId, AAS_ID_SHORT));
+
+        // assert service invocation still works
+        assertInvokeServiceResponse(actual, EXTERNAL_INVOKE_PAYLOAD, EXTERNAL_EXPECTED_RESULT);
+    }
+
+
+    @Test
     void testUpdateModule() throws Exception {
         Environment environment = newDefaultEnvironment();
         MvcResult result = mockMvc.perform(post(REST_PATH_MODULES)
@@ -775,6 +843,10 @@ class DeploymentTest {
                         .id(AAS_ID)
                         .idShort(AAS_ID_SHORT)
                         .submodels(ReferenceBuilder.forSubmodel(SUBMODEL_ID))
+                        .assetInformation(new DefaultAssetInformation.Builder()
+                                .assetKind(AssetKind.INSTANCE)
+                                .globalAssetId(GLOBAL_ASSET_ID)
+                                .build())
                         .build())
                 .submodels(new DefaultSubmodel.Builder()
                         .id(SUBMODEL_ID)

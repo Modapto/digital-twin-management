@@ -48,7 +48,7 @@ public class ModuleService {
     }
 
 
-    public Module createModule(Module module) throws Exception {
+    private void setModuleNameIfNotPresent(Module module) {
         try {
             if (StringHelper.isBlank(module.getName())) {
                 module.setName(module.getProvidedModel().getEnvironment().getAssetAdministrationShells().get(0).getIdShort());
@@ -57,6 +57,11 @@ public class ModuleService {
         catch (Exception e) {
             throw new BadRequestException("Module name not provided and could not be autmatically resolved");
         }
+    }
+
+
+    public Module createModule(Module module) throws Exception {
+        setModuleNameIfNotPresent(module);
         Module result = moduleRepository.save(module);
         dtManager.deploy(module);
         kafkaBridge.publish(ModuleCreatedEvent.builder()
@@ -75,15 +80,20 @@ public class ModuleService {
     }
 
 
-    public Module updateModule(String moduleId, Module module) throws Exception {
-        moduleRepository.findById(moduleId)
+    public Module updateModule(String moduleId, Module newModule) throws Exception {
+        Module module = moduleRepository.findById(moduleId)
                 .orElseThrow(() -> new ResourceNotFoundException(ERROR_MSG_MODULE_NOT_FOUND));
-        module.setId(moduleId);
+        module.setProvidedModel(newModule.getProvidedModel());
+        if (!StringHelper.isBlank(newModule.getName())) {
+            module.setName(newModule.getName());
+        }
+        module.setType(newModule.getType());
+        module.setAssetConnections(newModule.getAssetConnections());
         dtManager.update(module);
         kafkaBridge.publish(ModuleUpdatedEvent.builder()
                 .payload(ModuleDetailsPayload.builder()
                         .moduleId(module.getId())
-                        .name(module.getName())
+                        .name(newModule.getName())
                         .endpoint(module.getExternalEndpoint())
                         .build())
                 .build());
