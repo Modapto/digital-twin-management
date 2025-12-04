@@ -401,7 +401,9 @@ public class DigitalTwinManager {
 
     private Operation initializeOperation(SmartService service) {
         return new DefaultOperation.Builder()
-                .idShort("id_" + IdHelper.uuidAlphanumeric16(service.getId()))
+                .idShort(Objects.nonNull(service.getReference())
+                        ? ReferenceHelper.getEffectiveKey(service.getReference()).getValue()
+                        : "id_" + IdHelper.uuidAlphanumeric16(service.getId()))
                 .displayName(new DefaultLangStringNameType.Builder()
                         .language(config.getDtDefaultLanguage())
                         .text(service.getName())
