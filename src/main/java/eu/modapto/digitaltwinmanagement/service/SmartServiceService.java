@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
@@ -30,6 +29,7 @@ import eu.modapto.digitaltwinmanagement.model.request.SmartServiceRequestDto;
 import eu.modapto.digitaltwinmanagement.model.response.external.catalog.ServiceDetailsResponseDto;
 import eu.modapto.digitaltwinmanagement.repository.ModuleRepository;
 import eu.modapto.digitaltwinmanagement.repository.SmartServiceRepository;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -110,7 +110,6 @@ public class SmartServiceService {
             SmartService service = getServiceDetails(request.getServiceCatalogId(), token);
             service.setProperties(request.getProperties());
             applyRequestOverrides(service, request);
-            ensureValidServicename(service);
             service.setModule(module);
             smartServiceRepository.save(service);
             module.getServices().add(service);
@@ -181,6 +180,7 @@ public class SmartServiceService {
                                     response.getStatusCode(),
                                     new String(response.getBody().readAllBytes())));
                 });
+        result.setId(IdHelper.uuid());
         result.setServiceCatalogId(serviceCatalogId);
         return result;
     }
@@ -226,32 +226,9 @@ public class SmartServiceService {
     }
 
 
-    private void ensureValidServicename(SmartService service) {
-        String name = service.getName();
-        String defaultName = service.getId();
-        if (StringHelper.isBlank(name)) {
-            name = service.getId();
-        }
-        else {
-            name = name.replace(" ", "_")
-                    .replaceAll("[^a-zA-Z0-9_]", "");
-            if (!name.matches("^[a-zA-Z].*") || name.length() < 5) {
-                name = service.getId();
-            }
-            else if (name.length() > 128) {
-                name = name.substring(0, 128);
-            }
-        }
-        service.setName(name);
-    }
-
-
     private static void applyRequestOverrides(SmartService service, SmartServiceRequestDto request) {
         if (Objects.nonNull(request.getName())) {
             service.setName(request.getName());
-        }
-        else {
-            service.setName(service.getName());
         }
         if (Objects.nonNull(request.getDescription())) {
             service.setDescription(request.getDescription());

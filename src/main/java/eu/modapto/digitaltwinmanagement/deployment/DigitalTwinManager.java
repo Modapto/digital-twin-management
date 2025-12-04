@@ -45,6 +45,7 @@ import eu.modapto.digitaltwinmanagement.util.AddressTranslationHelper;
 import eu.modapto.digitaltwinmanagement.util.DockerHelper;
 import eu.modapto.digitaltwinmanagement.util.EmbeddedSmartServiceHelper;
 import eu.modapto.digitaltwinmanagement.util.EnvironmentHelper;
+import eu.modapto.digitaltwinmanagement.util.IdHelper;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -70,6 +71,8 @@ import org.eclipse.digitaltwin.aas4j.v3.model.Qualifier;
 import org.eclipse.digitaltwin.aas4j.v3.model.QualifierKind;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultLangStringNameType;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultLangStringTextType;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperation;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
@@ -170,14 +173,13 @@ public class DigitalTwinManager {
             }
         }
         for (var service: module.getServices()) {
-            Operation operation;
+            Operation operation = initializeOperation(service);
             if (service instanceof EmbeddedSmartService embedded) {
-                operation = EmbeddedSmartServiceHelper.addSmartService(newActualModel, submodel, embedded);
+                EmbeddedSmartServiceHelper.addSmartService(newActualModel, submodel, embedded, operation);
             }
             else if (service instanceof InternalSmartService internal) {
                 ensureDockerRunning();
                 int port = startContainerForInternalService(internal);
-                operation = addOperationNormal(service);
                 submodel.getSubmodelElements().add(operation);
                 module.getAssetConnections().add(createAssetConnection(
                         ReferenceBuilder.forSubmodel(submodel, operation),
@@ -185,7 +187,6 @@ public class DigitalTwinManager {
                         port));
             }
             else if (service instanceof ExternalSmartService external) {
-                operation = addOperationNormal(service);
                 submodel.getSubmodelElements().add(operation);
                 module.getAssetConnections().add(createAssetConnection(
                         ReferenceBuilder.forSubmodel(submodel, operation),
@@ -398,9 +399,17 @@ public class DigitalTwinManager {
     }
 
 
-    private Operation addOperationNormal(SmartService service) {
+    private Operation initializeOperation(SmartService service) {
         return new DefaultOperation.Builder()
-                .idShort(service.getName())
+                .idShort("id_" + IdHelper.uuidAlphanumeric16(service.getId()))
+                .displayName(new DefaultLangStringNameType.Builder()
+                        .language(config.getDtDefaultLanguage())
+                        .text(service.getName())
+                        .build())
+                .description(new DefaultLangStringTextType.Builder()
+                        .language(config.getDtDefaultLanguage())
+                        .text(service.getDescription())
+                        .build())
                 .inputVariables(service.getInputParameters().stream()
                         .map(x -> new DefaultOperationVariable.Builder()
                                 .value(x)

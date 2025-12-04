@@ -35,10 +35,11 @@ import static eu.modapto.dt.faaast.service.smt.simulation.Constants.SMC_SIMULATI
 
 import de.fraunhofer.iosb.ilt.faaast.service.model.EnvironmentContext;
 import de.fraunhofer.iosb.ilt.faaast.service.model.submodeltemplate.Cardinality;
+import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceBuilder;
 import de.fraunhofer.iosb.ilt.faaast.service.util.ReferenceHelper;
-import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.model.EmbeddedSmartService;
+import eu.modapto.dt.faaast.service.smt.simulation.Constants;
 import eu.modapto.dt.faaast.service.smt.simulation.FmuHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -55,14 +56,16 @@ import no.ntnu.ihb.fmi4j.modeldescription.variables.Causality;
 import org.eclipse.digitaltwin.aas4j.v3.dataformat.aasx.InMemoryFile;
 import org.eclipse.digitaltwin.aas4j.v3.model.AasSubmodelElements;
 import org.eclipse.digitaltwin.aas4j.v3.model.DataTypeDefXsd;
+import org.eclipse.digitaltwin.aas4j.v3.model.KeyTypes;
 import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
 import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.QualifierKind;
+import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElementCollection;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultExtension;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultFile;
-import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperation;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultProperty;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
@@ -102,7 +105,6 @@ public class EmbeddedSmartServiceHelper {
                         .noneMatch(y -> Objects.equals(y.getIdShort(), x.getValue().getIdShort())));
             }
             List<OperationVariable> outputVariables = getOutputParameters(fmu, service);
-            operation.setIdShort(service.getName());
             operation.setInputVariables(inputVariables);
             operation.setOutputVariables(outputVariables);
             service.setInputParameters(inputVariables.stream().map(OperationVariable::getValue).toList());
@@ -116,7 +118,7 @@ public class EmbeddedSmartServiceHelper {
 
 
     private static String simulationModelName(EmbeddedSmartService service) {
-        return SMC_SIMULATION_MODELS_PREFIX + service.getName();
+        return SMC_SIMULATION_MODELS_PREFIX + IdHelper.uuidAlphanumeric16(service.getId());
     }
 
 
@@ -133,7 +135,7 @@ public class EmbeddedSmartServiceHelper {
     }
 
 
-    public static Operation addSmartService(EnvironmentContext environmentContext, Submodel submodel, EmbeddedSmartService service) {
+    public static void addSmartService(EnvironmentContext environmentContext, Submodel submodel, EmbeddedSmartService service, Operation operation) {
         if (!ReferenceHelper.equals(SEMANTIC_ID_SMT_SIMULATION, submodel.getSemanticId())) {
             submodel.setSemanticId(SEMANTIC_ID_SMT_SIMULATION);
         }
@@ -150,18 +152,13 @@ public class EmbeddedSmartServiceHelper {
                     .build());
             environmentContext.getFiles().add(new InMemoryFile(asPropertiesFile(service.getInitialArguments().get()), FILENAME_INITIAL_VARIABLES));
         }
-
-        Operation operation = submodel.getSubmodelElements().stream()
+        if (submodel.getSubmodelElements().stream()
                 .filter(Operation.class::isInstance)
-                .filter(x -> Objects.equals(service.getName(), x.getIdShort()))
-                .map(Operation.class::cast)
-                .findFirst()
-                .orElse(new DefaultOperation());
-        if (StringHelper.isEmpty(operation.getIdShort())) {
+                .noneMatch(x -> Objects.equals(operation.getIdShort(), x.getIdShort()))) {
+            initializeOperation(operation, service);
             submodel.getSubmodelElements().add(operation);
         }
-        initializeOperation(operation, service);
-        return operation;
+        linkOperationToFmu(submodel, operation, service);
     }
 
 
@@ -290,6 +287,27 @@ public class EmbeddedSmartServiceHelper {
                                 .build())
                         .build())
                 .build();
+    }
+
+
+    private static void linkOperationToFmu(Submodel submodel, Operation operation, EmbeddedSmartService service) {
+        Reference fmuReference = new ReferenceBuilder()
+                .submodel(submodel.getId())
+                .element(simulationModelName(service), KeyTypes.SUBMODEL_ELEMENT_COLLECTION)
+                .element(ID_SHORT_SIMULATION_MODEL_MODEL_FILE, KeyTypes.SUBMODEL_ELEMENT_COLLECTION)
+                .element(ID_SHORT_MODEL_FILE_MODEL_FILE_VERSION, KeyTypes.SUBMODEL_ELEMENT_COLLECTION)
+                .element(ID_SHORT_MODEL_FILE_VERSOIN_DIGITAL_FILE, KeyTypes.FILE)
+                .build();
+        if (Objects.isNull(operation.getExtensions())) {
+            operation.setExtensions(new ArrayList<>());
+        }
+        if (operation.getExtensions().stream().noneMatch(e -> Objects.equals(Constants.EXTENSION_KEY_OPERATION_TO_DIGITAL_FILE_LINK, e.getName())
+                && Objects.nonNull(ReferenceHelper.findSameReference(e.getRefersTo(), fmuReference)))) {
+            operation.getExtensions().add(new DefaultExtension.Builder()
+                    .name(Constants.EXTENSION_KEY_OPERATION_TO_DIGITAL_FILE_LINK)
+                    .refersTo(fmuReference)
+                    .build());
+        }
     }
 
 }

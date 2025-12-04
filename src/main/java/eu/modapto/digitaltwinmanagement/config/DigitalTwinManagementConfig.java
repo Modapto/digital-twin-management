@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 public class DigitalTwinManagementConfig {
+
     private String hostname;
 
     private int port;
@@ -118,6 +119,9 @@ public class DigitalTwinManagementConfig {
 
     @Value("${modapto.dt.operation.output.validation:REQUIRE_PRESENT_OR_DEFAULT}")
     private ArgumentValidationMode dtOutputValidationMode;
+
+    @Value("${modapto.dt.default-language:en}")
+    private String dtDefaultLanguage;
 
     @Value("${modapto.embedded-service.returnResultsForEachStep:true}")
     private boolean embeddedServiceReturnResultsForEachStep;

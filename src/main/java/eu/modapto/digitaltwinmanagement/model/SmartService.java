@@ -25,18 +25,18 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Transient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -60,7 +60,6 @@ import org.eclipse.digitaltwin.aas4j.v3.model.SubmodelElement;
 @DiscriminatorColumn(name = "service_type")
 public abstract class SmartService {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     private String serviceCatalogId;
     private String name;
@@ -106,5 +105,13 @@ public abstract class SmartService {
     @JsonIgnore
     public String getExternalEndpoint() {
         return AddressTranslationHelper.getExternalEndpoint(this);
+    }
+
+
+    @PrePersist
+    public void generateId() {
+        if (id == null) {
+            id = UUID.randomUUID().toString();
+        }
     }
 }
