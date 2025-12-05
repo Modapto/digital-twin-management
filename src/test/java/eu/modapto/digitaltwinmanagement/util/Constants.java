@@ -52,6 +52,9 @@ public class Constants {
     public static final String REST_PATH_MODULE_TEMPLATE = REST_PATH_MODULES + "/%s";
     public static final String REST_PATH_SERVICE_TEMPLATE = REST_PATH_SERVICES + "/%s";
 
+    // Asset
+    public static final String GLOBAL_ASSET_ID = "http://example.org/asset/1";
+
     // AAS model
     public static final String AAS_ID = "http://example.org/aas/1";
     public static final String AAS_ID_SHORT = "ExampleAAS";

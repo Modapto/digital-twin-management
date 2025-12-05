@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.eclipse.digitaltwin.aas4j.v3.model.Environment;
 import org.eclipse.digitaltwin.aas4j.v3.model.Identifiable;
 import org.eclipse.digitaltwin.aas4j.v3.model.Operation;
 import org.eclipse.digitaltwin.aas4j.v3.model.OperationVariable;
@@ -70,6 +71,8 @@ import org.eclipse.digitaltwin.aas4j.v3.model.Qualifier;
 import org.eclipse.digitaltwin.aas4j.v3.model.QualifierKind;
 import org.eclipse.digitaltwin.aas4j.v3.model.Reference;
 import org.eclipse.digitaltwin.aas4j.v3.model.Submodel;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultLangStringNameType;
+import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultLangStringTextType;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperation;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultOperationVariable;
 import org.eclipse.digitaltwin.aas4j.v3.model.impl.DefaultQualifier;
@@ -159,21 +162,24 @@ public class DigitalTwinManager {
 
     private void createActualModel(Module module) throws URISyntaxException, MalformedURLException {
         LOGGER.debug("creating actual model via copy...");
-        EnvironmentContext actualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
+        EnvironmentContext newActualModel = EnvironmentHelper.deepCopy(module.getProvidedModel());
         Submodel submodel = null;
         if (!module.getServices().isEmpty()) {
             submodel = createModaptoSubmodel(module.getActualModel());
-            actualModel.getEnvironment().getSubmodels().add(submodel);
+            newActualModel.getEnvironment().getSubmodels().add(submodel);
+            Reference submodelReference = ReferenceBuilder.forSubmodel(submodel.getId());
+            if (Objects.isNull(ReferenceHelper.findSameReference(newActualModel.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels(), submodelReference))) {
+                newActualModel.getEnvironment().getAssetAdministrationShells().get(0).getSubmodels().add(submodelReference);
+            }
         }
         for (var service: module.getServices()) {
-            Operation operation;
+            Operation operation = initializeOperation(service);
             if (service instanceof EmbeddedSmartService embedded) {
-                operation = EmbeddedSmartServiceHelper.addSmartService(actualModel, submodel, embedded);
+                EmbeddedSmartServiceHelper.addSmartService(newActualModel, submodel, embedded, operation);
             }
             else if (service instanceof InternalSmartService internal) {
                 ensureDockerRunning();
                 int port = startContainerForInternalService(internal);
-                operation = addOperationNormal(service);
                 submodel.getSubmodelElements().add(operation);
                 module.getAssetConnections().add(createAssetConnection(
                         ReferenceBuilder.forSubmodel(submodel, operation),
@@ -181,7 +187,6 @@ public class DigitalTwinManager {
                         port));
             }
             else if (service instanceof ExternalSmartService external) {
-                operation = addOperationNormal(service);
                 submodel.getSubmodelElements().add(operation);
                 module.getAssetConnections().add(createAssetConnection(
                         ReferenceBuilder.forSubmodel(submodel, operation),
@@ -193,7 +198,7 @@ public class DigitalTwinManager {
             handleInputArgumentTypes(service, operation);
             service.setReference(ReferenceBuilder.forSubmodel(submodel, operation));
         }
-        module.setActualModel(actualModel);
+        module.setActualModel(newActualModel);
     }
 
 
@@ -293,11 +298,16 @@ public class DigitalTwinManager {
 
 
     private Submodel createModaptoSubmodel(final EnvironmentContext currentEnvironment) {
-        String submodelId = currentEnvironment.getEnvironment().getSubmodels().stream()
-                .filter(x -> Objects.equals(MODAPTO_SUBMODEL_ID_SHORT, x.getIdShort()))
-                .map(Identifiable::getId)
-                .findFirst()
-                .orElseGet(() -> String.format("%s/%s", MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE, IdHelper.uuid()));
+        String submodelId = MODAPTO_SUBMODEL_SEMANTIC_ID_VALUE;
+        submodelId = Optional.ofNullable(currentEnvironment)
+                .map(EnvironmentContext::getEnvironment)
+                .map(Environment::getSubmodels)
+                .filter(Objects::nonNull)
+                .flatMap(submodels -> submodels.stream()
+                        .filter(x -> Objects.equals(MODAPTO_SUBMODEL_ID_SHORT, x.getIdShort()))
+                        .map(Identifiable::getId)
+                        .findFirst())
+                .orElse(submodelId);
         return new DefaultSubmodel.Builder()
                 .id(submodelId)
                 .idShort(MODAPTO_SUBMODEL_ID_SHORT)
@@ -389,9 +399,19 @@ public class DigitalTwinManager {
     }
 
 
-    private Operation addOperationNormal(SmartService service) {
+    private Operation initializeOperation(SmartService service) {
         return new DefaultOperation.Builder()
-                .idShort(service.getName())
+                .idShort(Objects.nonNull(service.getReference())
+                        ? ReferenceHelper.getEffectiveKey(service.getReference()).getValue()
+                        : "id_" + IdHelper.uuidAlphanumeric16(service.getId()))
+                .displayName(new DefaultLangStringNameType.Builder()
+                        .language(config.getDtDefaultLanguage())
+                        .text(service.getName())
+                        .build())
+                .description(new DefaultLangStringTextType.Builder()
+                        .language(config.getDtDefaultLanguage())
+                        .text(service.getDescription())
+                        .build())
                 .inputVariables(service.getInputParameters().stream()
                         .map(x -> new DefaultOperationVariable.Builder()
                                 .value(x)

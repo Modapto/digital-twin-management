@@ -33,9 +33,25 @@ public class IdHelper {
     }
 
 
+    public static String uuidAlphanumeric(String uuid) {
+        return uuid.replace("-", "");
+    }
+
+
     public static String uuidAlphanumeric(int length) {
         Ensure.require(length > 0 && length <= 32, "length must be between 0 and 32");
         return uuidAlphanumeric().substring(0, length);
+    }
+
+
+    public static String uuidAlphanumeric(String uuid, int length) {
+        Ensure.require(length > 0 && length <= 32, "length must be between 0 and 32");
+        return uuidAlphanumeric(uuid).substring(0, length);
+    }
+
+
+    public static String uuidAlphanumeric8(String uuid) {
+        return uuidAlphanumeric(uuid, 8);
     }
 
 
@@ -46,5 +62,10 @@ public class IdHelper {
 
     public static String uuidAlphanumeric16() {
         return uuidAlphanumeric(16);
+    }
+
+
+    public static String uuidAlphanumeric16(String uuid) {
+        return uuidAlphanumeric(uuid, 16);
     }
 }

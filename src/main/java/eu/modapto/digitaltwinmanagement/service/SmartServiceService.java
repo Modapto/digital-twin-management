@@ -15,7 +15,6 @@
 package eu.modapto.digitaltwinmanagement.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.fraunhofer.iosb.ilt.faaast.service.util.StringHelper;
 import eu.modapto.digitaltwinmanagement.config.DigitalTwinManagementConfig;
 import eu.modapto.digitaltwinmanagement.deployment.DigitalTwinManager;
 import eu.modapto.digitaltwinmanagement.exception.ResourceNotFoundException;
@@ -111,7 +110,6 @@ public class SmartServiceService {
             SmartService service = getServiceDetails(request.getServiceCatalogId(), token);
             service.setProperties(request.getProperties());
             applyRequestOverrides(service, request);
-            ensureValidServicename(service);
             service.setModule(module);
             smartServiceRepository.save(service);
             module.getServices().add(service);
@@ -182,6 +180,7 @@ public class SmartServiceService {
                                     response.getStatusCode(),
                                     new String(response.getBody().readAllBytes())));
                 });
+        result.setId(IdHelper.uuid());
         result.setServiceCatalogId(serviceCatalogId);
         return result;
     }
@@ -227,34 +226,9 @@ public class SmartServiceService {
     }
 
 
-    private void ensureValidServicename(SmartService service) {
-        String name = service.getName();
-        if (StringHelper.isBlank(name)) {
-            name = randomLowercaseChar() + IdHelper.uuidAlphanumeric();
-        }
-        else {
-            name = name.replace(" ", "_")
-                    .replaceAll("[^a-zA-Z0-9_]", "");
-            if (!name.matches("^[a-zA-Z].*")) {
-                name = randomLowercaseChar() + name;
-            }
-            if (name.length() > 128) {
-                name = name.substring(0, 128);
-            }
-            if (name.length() < 5) {
-                name = name + "_" + IdHelper.uuidAlphanumeric8();
-            }
-        }
-        service.setName(name);
-    }
-
-
     private static void applyRequestOverrides(SmartService service, SmartServiceRequestDto request) {
         if (Objects.nonNull(request.getName())) {
             service.setName(request.getName());
-        }
-        else {
-            service.setName(String.format("%s_%s", service.getName(), IdHelper.uuidAlphanumeric16()));
         }
         if (Objects.nonNull(request.getDescription())) {
             service.setDescription(request.getDescription());
