@@ -321,7 +321,6 @@ public class DockerHelper {
     public static String createContainer(DockerClient client, ContainerInfo containerInfo) {
         ensureImagePresent(client, containerInfo.getImageName());
         stopAndDeleteContainerByName(client, containerInfo.getContainerName());
-
         HostConfig hostConfig = new HostConfig()
                 .withPortBindings(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> PortBinding.parse(String.format("%d:%d", x.getKey(), x.getValue())))
@@ -331,6 +330,15 @@ public class DockerHelper {
                 .withLinks(containerInfo.getLinkedContainers().entrySet().stream()
                         .map(x -> new Link(x.getKey(), x.getValue()))
                         .toList());
+        if (config.getDockerContainerMemory() > 0) {
+            hostConfig.withMemory(config.getDockerContainerMemory());
+        }
+        if (config.getDockerContainerMemorySwap() > 0) {
+            hostConfig.withMemorySwap(config.getDockerContainerMemorySwap());
+        }
+        if (config.getDockerContainerMemoryReservation() > 0) {
+            hostConfig.withMemoryReservation(config.getDockerContainerMemoryReservation());
+        }
         if (!StringHelper.isBlank(containerInfo.getMountPathSrc())) {
             createVolume(client, containerInfo.getVolumeName());
             try {
@@ -349,6 +357,12 @@ public class DockerHelper {
                 hostConfig.withNetworkMode(actualNetwork);
             }
         }
+        List<String> envVariables = containerInfo.getEnvironmentVariables().entrySet().stream()
+                .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
+                .collect(Collectors.toList());
+        if (!StringHelper.isEmpty(config.getDockerContainerJvmArguments())) {
+            envVariables.add(String.format("JDK_JAVA_OPTIONS=%s", config.getDockerContainerJvmArguments()));
+        }
         return client.createContainerCmd(containerInfo.getImageName())
                 .withExposedPorts(containerInfo.getPortMappings().entrySet().stream()
                         .map(x -> new ExposedPort(x.getValue()))
@@ -356,9 +370,7 @@ public class DockerHelper {
                 .withLabels(Objects.nonNull(containerInfo.getLabels()) ? containerInfo.getLabels() : Map.of())
                 .withHostConfig(hostConfig)
                 .withName(containerInfo.getContainerName())
-                .withEnv(containerInfo.getEnvironmentVariables().entrySet().stream()
-                        .map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
-                        .toList())
+                .withEnv(envVariables)
                 .exec()
                 .getId();
     }

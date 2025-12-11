@@ -66,6 +66,18 @@ public class DigitalTwinManagementConfig {
     @Value("${dt-management.docker.container.name:}")
     private String dockerContainerName;
 
+    @Value("${dt-management.docker.container.memory:-1}")
+    private long dockerContainerMemory;
+
+    @Value("${dt-management.docker.container.memoryswap:-1}")
+    private long dockerContainerMemorySwap;
+
+    @Value("${dt-management.docker.container.memoryreservation:-1}")
+    private long dockerContainerMemoryReservation;
+
+    @Value("${dt-management.docker.container.jvm-args:}")
+    private String dockerContainerJvmArguments;
+
     @Value("${dt-management.docker.network:}")
     private String dockerNetwork;
 
