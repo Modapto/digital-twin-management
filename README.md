@@ -167,6 +167,18 @@ dt.deployment.docker.moduleContainerPrefix=modapto-module-
 # Prefix for docker container names for (internal) smart services
 dt.deployment.docker.serviceContainerPrefix=modapto-service-
 
+# Hard limit for memory each DT container can use at maximum (in byte). Default is no limit.
+dt-management.docker.container.memory
+
+# The amount of memory each DT container is allowed to swap to disk (in byte). Default is no limit.
+dt-management.docker.container.memoryswap
+
+# Allows you to specify a soft limit of memory each DT container is allowed to use which is activated when Docker detects contention or low memory on the host machine (in byte). Must be smaller than 'dt-management.docker.container.memory' for it to take precedence. Default: empty.
+dt-management.docker.container.memoryreservation=2147483648
+
+# Enables to forward JVM arguments to the JVM running inside the DT container. This can be used e.g. to control memory usage like setting the maximum heap size to 2GB using '-Xmx2048m'. Default: empty.
+dt-management.docker.container.jvm-args
+
 ###
 # If true, embedded service calls return results for each step, otherwise only for last step (=final result)
 modapto.embedded-service.returnResultsForEachStep=true
