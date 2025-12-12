@@ -229,6 +229,8 @@ logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5(%level) %-26.26(%.-25([%logg
 ## Changelog
 
 <!--changelog-anchor-->
+<!--start:changelog-header-->
+## 1.1.0-SNAPSHOT (current development version)<!--end:changelog-header-->
 ## 1.0
 - Enable authentication with service catalog by forwarding JWT from user request to service catalog
 
